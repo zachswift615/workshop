@@ -1,18 +1,24 @@
 # Workshop
 
-**Persistent context and memory tool for Claude Code sessions.**
+**Give Claude long-term memory for your projects.**
 
-Workshop helps Claude remember decisions, gotchas, preferences, and context across sessions. Never lose track of why you made a choice or what you were working on.
+Workshop is a persistent memory tool that lets Claude Code remember your decisions, preferences, and project context across sessions. Install it once, and Claude automatically maintains institutional knowledge about your codebase - no manual note-taking required.
 
-## Features
+**For developers using Claude Code** - your AI pair programmer will remember why you made architectural choices, what gotchas to avoid, and what you're working on, even weeks later.
 
-- 🧠 **Smart Context Search** - Ask "why did we do X?" and get instant answers with reasoning
-- 📝 **Decision Tracking** - Record architectural decisions with full reasoning
-- ⚠️ **Gotcha Documentation** - Never forget edge cases and constraints
-- 🔄 **Session Summaries** - Automatic capture of what happened in each session
-- 🔍 **Full-Text Search** - Fast SQLite FTS5 search across all entries
-- 🎯 **Goal & State Management** - Track what you're working on and what's next
-- 🤖 **Claude Code Integration** - Seamless integration with automatic context loading
+## How It Works
+
+1. **You install Workshop**: `pip install claude-workshop`
+2. **You run setup once**: `workshop init`
+3. **Claude does everything else**: Records decisions, maintains context, answers "why" questions
+
+Claude automatically:
+- 📝 Records architectural decisions with reasoning as you discuss them
+- ⚠️ Documents gotchas and constraints as you discover them
+- 🔄 Captures session summaries (files changed, commands run, what you worked on)
+- 🧠 Answers "why did we choose X?" questions by searching past decisions
+- 🎯 Tracks your current goals and next steps
+- 🔍 Provides full-text search across all project knowledge
 
 ## Installation
 
@@ -23,41 +29,38 @@ pip install claude-workshop
 workshop init
 ```
 
-This will:
-- Add Workshop instructions to global Claude Code settings (`~/.claude/settings.json`)
-- Copy integration files to local project (`.claude/` directory)
-- Enable automatic context loading at session start
+This sets up Claude Code integration:
+- **Global**: Adds Workshop instructions to `~/.claude/settings.json` (Claude will use Workshop in all your projects)
+- **Local**: Copies integration files to `.claude/` (auto-loads context at session start, captures session summaries at session end)
 
-### Manual Installation Options
+That's it! Start a new Claude Code session and Claude will automatically maintain your project's institutional knowledge.
+
+### What Gets Set Up
+
+The `workshop init` command configures Claude Code to:
+- Load existing context at the start of each session
+- Record decisions, gotchas, and preferences as you work
+- Capture session summaries automatically when sessions end
+- Answer "why" questions by searching past decisions
+
+## What You Can Do (Optional)
+
+While Claude handles most Workshop interactions automatically, you can also use the CLI directly:
 
 ```bash
-# Global only (Claude checks for Workshop in all projects)
-workshop init --global
+# Query what Claude has learned
+workshop why "using zustand"        # Why did we make this choice?
+workshop context                    # What's the current project state?
+workshop sessions                   # What happened in past sessions?
+workshop recent                     # What was recorded recently?
 
-# Local only (auto-load context in current project)
-workshop init --local
+# Manually add entries (though Claude does this automatically)
+workshop decision "Using PostgreSQL" -r "Need ACID guarantees for transactions"
+workshop gotcha "API rate limit is 100 req/min"
+workshop goal add "Implement caching layer"
 ```
 
-## Quick Start
-
-```bash
-# Write entries
-workshop note "Implemented user authentication flow"
-workshop decision "Using zustand for state management" --reasoning "Simpler API than Redux, better TypeScript support"
-workshop gotcha "Stripe webhooks need raw body parser disabled"
-workshop preference "User prefers verbose comments explaining the why"
-
-# Query and search
-workshop why "using zustand"        # Smart search - answers "why did we do X?"
-workshop context                    # Show current session context
-workshop search "authentication"    # Search all entries
-workshop read --type decision       # Show all decisions
-workshop recent                     # Show recent entries
-
-# Manage state
-workshop goal add "Implement payment processing"
-workshop next "Add error boundaries for auth failures"
-```
+**Most users never need to run these commands** - just let Claude manage everything!
 
 ## Data Storage
 
