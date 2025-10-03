@@ -10,7 +10,7 @@ from .storage import WorkshopStorage
 from .display import (
     display_entry, display_entries, display_context,
     display_preferences, display_current_state,
-    success, error, info
+    success, error, info as display_info
 )
 
 
@@ -78,7 +78,7 @@ def decision(content, reasoning, tags, files):
     )
     success(f"Decision recorded: {content}")
     if reasoning:
-        info(f"Reasoning: {reasoning}")
+        display_info(f"Reasoning: {reasoning}")
 
 
 @main.command()
@@ -153,7 +153,7 @@ def goal_list():
     goals = state.get('goals', [])
 
     if not goals:
-        info("No active goals")
+        display_info("No active goals")
         return
 
     click.echo("\n🎯 Active Goals:\n")
@@ -272,7 +272,7 @@ def summary(days):
     entries = store.get_entries(since=since)
 
     if not entries:
-        info(f"No activity in the last {days} days")
+        display_info(f"No activity in the last {days} days")
         return
 
     # Group by type
