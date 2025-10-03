@@ -47,3 +47,9 @@ htmlcov/
 
 # Claude Code
 .claude/
+# But include Workshop integration files
+!.claude/settings.json
+!.claude/README.md
+!.claude/workshop-session-start.sh
+!.claude/commands/
+!.claude/commands/workshop.sh
