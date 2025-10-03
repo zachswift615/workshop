@@ -1,11 +1,23 @@
 # Workshop
 
-Persistent context and memory tool for Claude Code sessions.
+**Persistent context and memory tool for Claude Code sessions.**
+
+Workshop helps Claude remember decisions, gotchas, preferences, and context across sessions. Never lose track of why you made a choice or what you were working on.
+
+## Features
+
+- 🧠 **Smart Context Search** - Ask "why did we do X?" and get instant answers with reasoning
+- 📝 **Decision Tracking** - Record architectural decisions with full reasoning
+- ⚠️ **Gotcha Documentation** - Never forget edge cases and constraints
+- 🔄 **Session Summaries** - Automatic capture of what happened in each session
+- 🔍 **Full-Text Search** - Fast SQLite FTS5 search across all entries
+- 🎯 **Goal & State Management** - Track what you're working on and what's next
+- 🤖 **Claude Code Integration** - Seamless integration with automatic context loading
 
 ## Installation
 
 ```bash
-pip install -e .
+pip install claude-workshop
 
 # Set up Claude Code integration (recommended)
 workshop init
@@ -49,9 +61,14 @@ workshop next "Add error boundaries for auth failures"
 
 ## Data Storage
 
-Workshop stores data in `.workshop/` directory:
-- Project-specific: `./.workshop/` in your project root
-- Global: `~/.workshop/` for cross-project context
+Workshop uses SQLite for fast, efficient storage:
+- **Project-specific**: `./.workshop/workshop.db` in your project root
+- **Global**: `~/.workshop/workshop.db` for cross-project context
+- **Custom location**: Set `WORKSHOP_DIR` environment variable
+
+### Migration from JSON
+
+If you're upgrading from an earlier version that used JSON storage, Workshop will automatically migrate your data to SQLite on first run and create a backup of your JSON file.
 
 ## Claude Code Integration
 
@@ -93,3 +110,42 @@ See `.claude/README.md` for details.
 - **Institutional Knowledge**: Never lose context about why things are the way they are
 - **Collaboration**: Share context with future sessions (and future you!)
 - **Efficiency**: Avoid re-discovering the same information
+
+
+## Commands Reference
+
+### Write Entries
+- `workshop note <text>` - Add a note
+- `workshop decision <text> -r <reasoning>` - Record a decision with reasoning  
+- `workshop gotcha <text>` - Document a gotcha or constraint
+- `workshop preference <text>` - Save a user preference
+- `workshop antipattern <text>` - Record an antipattern to avoid
+
+### Query & Search
+- `workshop why <query>` - Smart search answering "why did we do X?"
+- `workshop search <query>` - Full-text search across all entries
+- `workshop context` - Show current session context summary
+- `workshop recent` - Show recent entries
+- `workshop read --type <type>` - Filter entries by type
+
+### Session History
+- `workshop sessions` - List recent sessions
+- `workshop session <id|last>` - View session details
+
+### State Management
+- `workshop goal add <text>` - Add a goal
+- `workshop goal list` - List active goals
+- `workshop next <text>` - Add a next step/TODO
+
+### Utilities
+- `workshop info` - Show workspace information
+- `workshop init` - Set up Claude Code integration
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Contributing
+
+Issues and pull requests welcome at https://github.com/zachswift615/workshop
+

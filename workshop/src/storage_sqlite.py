@@ -348,7 +348,7 @@ class WorkshopStorageSQLite:
 
             # Keyword matches
             content_lower = entry.get("content", "").lower()
-            reasoning_lower = entry.get("reasoning", "").lower()
+            reasoning_lower = (entry.get("reasoning") or "").lower()
 
             for keyword in keywords:
                 if keyword in content_lower:
