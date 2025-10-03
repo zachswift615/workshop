@@ -10,6 +10,7 @@ from .storage import WorkshopStorage
 from .display import (
     display_entry, display_entries, display_context,
     display_preferences, display_current_state,
+    display_why_results,
     success, error, info as display_info
 )
 
@@ -218,6 +219,26 @@ def search(query, limit):
     store = get_storage()
     results = store.search(query, limit=limit)
     display_entries(results, show_full=False)
+
+
+@main.command()
+@click.argument('query')
+@click.option('--limit', '-n', type=int, default=5, help='Number of results')
+def why(query, limit):
+    """
+    Answer "why" questions - find decisions and reasoning.
+
+    Smart search that prioritizes decisions with reasoning.
+    Perfect for understanding why things are the way they are.
+
+    Examples:
+        workshop why "using zustand"
+        workshop why "authentication flow"
+        workshop why "postgres instead of mongodb"
+    """
+    store = get_storage()
+    results = store.why_search(query, limit=limit)
+    display_why_results(results, query)
 
 
 @main.command()

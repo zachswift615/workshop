@@ -35,7 +35,8 @@ workshop decision "Using zustand for state management" --reasoning "Simpler API 
 workshop gotcha "Stripe webhooks need raw body parser disabled"
 workshop preference "User prefers verbose comments explaining the why"
 
-# Read and search
+# Query and search
+workshop why "using zustand"        # Smart search - answers "why did we do X?"
 workshop context                    # Show current session context
 workshop search "authentication"    # Search all entries
 workshop read --type decision       # Show all decisions

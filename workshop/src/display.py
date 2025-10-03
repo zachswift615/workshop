@@ -108,6 +108,77 @@ def display_entries(entries: List[Dict], show_full: bool = False):
         console.print()
 
 
+def display_why_results(entries: List[Dict], query: str):
+    """
+    Display results for 'why' queries with emphasis on reasoning.
+
+    This is optimized for answering "why did we do X?" questions by:
+    - Showing reasoning prominently
+    - Highlighting the most relevant answer first
+    - Providing context about when and where
+    """
+    if not entries:
+        console.print(f"\n[yellow]🤷 No context found for:[/yellow] [bold]{query}[/bold]")
+        console.print("\n[dim]Try:[/dim]")
+        console.print("[dim]  • Different keywords[/dim]")
+        console.print("[dim]  • Broader search terms[/dim]")
+        console.print("[dim]  • Check what's recorded with `workshop recent`[/dim]\n")
+        return
+
+    # Show header
+    console.print(f"\n[bold cyan]🔍 Why {query}?[/bold cyan]\n")
+
+    # Display the top result with special emphasis
+    top = entries[0]
+    emoji = get_type_emoji(top["type"])
+
+    console.print(f"[bold green]→ Primary Answer:[/bold green] {emoji} {top['type'].upper()}")
+    console.print(f"  [bold]{top['content']}[/bold]")
+
+    if top.get("reasoning"):
+        console.print(f"\n  [bold cyan]Why:[/bold cyan]")
+        console.print(f"  [italic]{top['reasoning']}[/italic]")
+
+    # Show context
+    context_parts = []
+    if top.get("branch"):
+        context_parts.append(f"[dim]on branch {top['branch']}[/dim]")
+    if top.get("tags"):
+        tags_str = " ".join([f"[cyan]#{tag}[/cyan]" for tag in top["tags"]])
+        context_parts.append(tags_str)
+
+    context_parts.append(f"[dim]{format_timestamp(top['timestamp'])}[/dim]")
+
+    if context_parts:
+        console.print(f"\n  {' · '.join(context_parts)}")
+
+    if top.get("files"):
+        files_str = ", ".join([f"[blue]{f}[/blue]" for f in top["files"]])
+        console.print(f"  [dim]Related files:[/dim] {files_str}")
+
+    # If there are more results, show them compactly
+    if len(entries) > 1:
+        console.print(f"\n[bold]Related context ({len(entries) - 1} more):[/bold]\n")
+
+        for entry in entries[1:]:
+            emoji = get_type_emoji(entry["type"])
+            timestamp = format_timestamp(entry["timestamp"])
+
+            console.print(f"  {emoji} {entry['content']}")
+
+            if entry.get("reasoning"):
+                # Show first 100 chars of reasoning
+                reasoning_preview = entry["reasoning"][:100]
+                if len(entry["reasoning"]) > 100:
+                    reasoning_preview += "..."
+                console.print(f"    [dim italic]{reasoning_preview}[/dim italic]")
+
+            console.print(f"    [dim]{timestamp}[/dim]")
+            console.print()
+
+    console.print()
+
+
 def display_context(
     recent_entries: List[Dict],
     current_state: Dict,

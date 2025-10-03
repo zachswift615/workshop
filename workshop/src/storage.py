@@ -232,6 +232,89 @@ class WorkshopStorage:
 
         return results
 
+    def why_search(self, query: str, limit: Optional[int] = 5) -> List[Dict]:
+        """
+        Smart search for "why" queries - prioritizes decisions and reasoning.
+
+        This is optimized for answering "why did we do X?" questions by:
+        - Prioritizing entries with reasoning (decisions)
+        - Boosting gotchas and antipatterns
+        - Scoring based on relevance
+
+        Args:
+            query: Search query (what you want to know why about)
+            limit: Maximum results to return (default 5)
+
+        Returns:
+            List of matching entries, prioritized by relevance
+        """
+        data = self._read_data()
+        entries = data["entries"]
+
+        # Split query into keywords (lowercase for case-insensitive search)
+        keywords = query.lower().split()
+
+        results = []
+        for entry in entries:
+            # Build searchable text from entry
+            searchable = " ".join([
+                entry.get("content", ""),
+                entry.get("reasoning", ""),
+                " ".join(entry.get("tags", [])),
+                " ".join(entry.get("files", []))
+            ]).lower()
+
+            # Check if all keywords match
+            if all(keyword in searchable for keyword in keywords):
+                # Calculate relevance score
+                score = 0
+
+                # Type priority (decisions are most important for "why")
+                type_scores = {
+                    "decision": 100,
+                    "antipattern": 80,
+                    "gotcha": 70,
+                    "note": 50,
+                    "preference": 40
+                }
+                score += type_scores.get(entry.get("type"), 30)
+
+                # Boost if has reasoning
+                if entry.get("reasoning"):
+                    score += 50
+
+                # Keyword match count (more matches = more relevant)
+                content_lower = entry.get("content", "").lower()
+                reasoning_lower = entry.get("reasoning", "").lower()
+                for keyword in keywords:
+                    if keyword in content_lower:
+                        score += 10
+                    if keyword in reasoning_lower:
+                        score += 15  # Reasoning matches are extra valuable
+
+                # Recency bonus (newer is slightly more relevant)
+                # More recent entries get a small boost
+                try:
+                    entry_date = datetime.fromisoformat(entry["timestamp"])
+                    days_old = (datetime.now() - entry_date).days
+                    recency_score = max(0, 10 - (days_old // 7))  # Up to 10 points, decay weekly
+                    score += recency_score
+                except:
+                    pass
+
+                results.append((score, entry))
+
+        # Sort by score (highest first), then by timestamp
+        results.sort(key=lambda x: (x[0], x[1]["timestamp"]), reverse=True)
+
+        # Extract just the entries (not the scores)
+        results = [entry for score, entry in results]
+
+        if limit:
+            results = results[:limit]
+
+        return results
+
     def add_preference(self, category: str, content: str) -> None:
         """Add a preference to a specific category"""
         data = self._read_data()
