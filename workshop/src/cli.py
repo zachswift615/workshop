@@ -6,7 +6,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
 
-from .storage import WorkshopStorage
+from .storage_sqlite import WorkshopStorageSQLite
+from .migrate import should_migrate, migrate_json_to_sqlite
 from .display import (
     display_entry, display_entries, display_context,
     display_preferences, display_current_state,
@@ -19,11 +20,14 @@ from .display import (
 storage = None
 
 
-def get_storage() -> WorkshopStorage:
-    """Get or create storage instance"""
+def get_storage() -> WorkshopStorageSQLite:
+    """Get or create storage instance, migrating from JSON if needed"""
     global storage
     if storage is None:
-        storage = WorkshopStorage()
+        # Check if migration is needed
+        if should_migrate():
+            migrate_json_to_sqlite()
+        storage = WorkshopStorageSQLite()
     return storage
 
 
@@ -37,7 +41,11 @@ def main(workspace):
     """
     global storage
     if workspace:
-        storage = WorkshopStorage(Path(workspace))
+        workspace_path = Path(workspace)
+        # Check if migration is needed for custom workspace
+        if should_migrate(workspace_path):
+            migrate_json_to_sqlite(workspace_path)
+        storage = WorkshopStorageSQLite(workspace_path)
     else:
         storage = get_storage()
 
@@ -321,10 +329,12 @@ def info():
     """Show workspace information"""
     store = get_storage()
     click.echo(f"\n📁 Workshop workspace: {store.workspace_dir}")
-    click.echo(f"📄 Data file: {store.data_file}")
+    click.echo(f"📄 Database file: {store.db_file}")
 
-    data = store._read_data()
-    total_entries = len(data.get('entries', []))
+    # Count entries using SQLite
+    with store._get_connection() as conn:
+        cursor = conn.execute("SELECT COUNT(*) as count FROM entries")
+        total_entries = cursor.fetchone()['count']
     click.echo(f"📝 Total entries: {total_entries}")
 
     current_state = store.get_current_state()
