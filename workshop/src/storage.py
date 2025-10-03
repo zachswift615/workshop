@@ -68,7 +68,8 @@ class WorkshopStorage:
                     "goals": [],
                     "blockers": [],
                     "next_steps": []
-                }
+                },
+                "sessions": []
             }
             self._write_data(default_data)
 
@@ -368,3 +369,136 @@ class WorkshopStorage:
         data = self._read_data()
         data["current_state"]["next_steps"] = []
         self._write_data(data)
+
+    # ========================================================================
+    # Session Management
+    # ========================================================================
+
+    def add_session(
+        self,
+        session_id: str,
+        start_time: str,
+        end_time: str,
+        duration_minutes: int,
+        files_modified: List[str] = None,
+        commands_run: List[str] = None,
+        workshop_entries: Dict[str, int] = None,
+        user_requests: List[str] = None,
+        summary: str = "",
+        branch: str = "",
+        reason: str = "",
+        metadata: Dict[str, Any] = None
+    ) -> Dict:
+        """
+        Add a session summary.
+
+        Args:
+            session_id: Unique session identifier
+            start_time: ISO timestamp of session start
+            end_time: ISO timestamp of session end
+            duration_minutes: Session duration in minutes
+            files_modified: List of file paths that were modified
+            commands_run: List of commands that were executed
+            workshop_entries: Dict of entry types created (e.g., {"decisions": 2, "notes": 3})
+            user_requests: List of main user requests/questions
+            summary: Auto-generated summary of session
+            branch: Git branch name
+            reason: Reason session ended (clear, logout, etc.)
+            metadata: Additional metadata
+
+        Returns:
+            The created session dict
+        """
+        data = self._read_data()
+
+        session = {
+            "id": session_id,
+            "start_time": start_time,
+            "end_time": end_time,
+            "duration_minutes": duration_minutes,
+            "files_modified": files_modified or [],
+            "commands_run": commands_run or [],
+            "workshop_entries": workshop_entries or {},
+            "user_requests": user_requests or [],
+            "summary": summary,
+            "branch": branch,
+            "reason": reason,
+            "metadata": metadata or {}
+        }
+
+        if "sessions" not in data:
+            data["sessions"] = []
+
+        data["sessions"].append(session)
+        self._write_data(data)
+
+        return session
+
+    def get_sessions(
+        self,
+        limit: Optional[int] = None,
+        since: Optional[datetime] = None
+    ) -> List[Dict]:
+        """
+        Retrieve sessions with optional filtering.
+
+        Args:
+            limit: Maximum number of sessions to return (most recent first)
+            since: Only return sessions after this datetime
+
+        Returns:
+            List of matching sessions
+        """
+        data = self._read_data()
+        sessions = data.get("sessions", [])
+
+        # Filter by date if provided
+        if since:
+            sessions = [
+                s for s in sessions
+                if datetime.fromisoformat(s["end_time"]) >= since
+            ]
+
+        # Sort by end time (newest first)
+        sessions.sort(key=lambda s: s["end_time"], reverse=True)
+
+        # Apply limit
+        if limit:
+            sessions = sessions[:limit]
+
+        return sessions
+
+    def get_session_by_id(self, session_id: str) -> Optional[Dict]:
+        """
+        Get a specific session by ID.
+
+        Args:
+            session_id: Session identifier (can be full ID or index like "1", "2")
+
+        Returns:
+            Session dict or None if not found
+        """
+        data = self._read_data()
+        sessions = data.get("sessions", [])
+
+        # Try as index first (1-based for user-friendliness)
+        try:
+            index = int(session_id) - 1
+            if 0 <= index < len(sessions):
+                # Return sessions in chronological order for indexing
+                sorted_sessions = sorted(sessions, key=lambda s: s["end_time"])
+                return sorted_sessions[index]
+        except ValueError:
+            pass
+
+        # Try as session ID
+        for session in sessions:
+            if session["id"] == session_id or session["id"].startswith(session_id):
+                return session
+
+        return None
+
+    def get_last_session(self) -> Optional[Dict]:
+        """Get the most recent session."""
+        sessions = self.get_sessions(limit=1)
+        return sessions[0] if sessions else None

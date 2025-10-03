@@ -335,6 +335,43 @@ def info():
     click.echo(f"📍 Next steps: {next_steps}\n")
 
 
+# ============================================================================
+# SESSION COMMANDS
+# ============================================================================
+
+@main.command()
+@click.option('--limit', '-n', type=int, default=10, help='Number of sessions to show')
+def sessions(limit):
+    """List recent sessions"""
+    from .display import display_sessions
+
+    store = get_storage()
+    session_list = store.get_sessions(limit=limit)
+    display_sessions(session_list)
+
+
+@main.command()
+@click.argument('session_id', default='last')
+def session(session_id):
+    """Show details for a specific session (by ID or 'last')"""
+    from .display import display_session_detail
+
+    store = get_storage()
+
+    if session_id == 'last':
+        session_data = store.get_last_session()
+        if not session_data:
+            display_info("No sessions recorded yet")
+            return
+    else:
+        session_data = store.get_session_by_id(session_id)
+        if not session_data:
+            error(f"Session not found: {session_id}")
+            return
+
+    display_session_detail(session_data)
+
+
 @main.command()
 @click.option('--global', 'global_config', is_flag=True, help='Set up global Claude Code integration')
 @click.option('--local', 'local_config', is_flag=True, help='Set up local project integration')
@@ -473,6 +510,14 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 shutil.copy2(script_src, script_dst)
                 script_dst.chmod(0o755)  # Make executable
                 files_copied.append('workshop-session-start.sh')
+
+            # Copy workshop-session-end.sh
+            script_end_src = template_dir / "workshop-session-end.sh"
+            script_end_dst = local_claude_dir / "workshop-session-end.sh"
+            if script_end_src.exists() and not script_end_dst.exists():
+                shutil.copy2(script_end_src, script_end_dst)
+                script_end_dst.chmod(0o755)  # Make executable
+                files_copied.append('workshop-session-end.sh')
 
             # Copy commands directory
             commands_src = template_dir / "commands"

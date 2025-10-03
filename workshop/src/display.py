@@ -295,3 +295,150 @@ def error(message: str):
 def info(message: str):
     """Display info message"""
     console.print(f"[blue]ℹ[/blue] {message}")
+
+
+# ============================================================================
+# Session Display Functions
+# ============================================================================
+
+def display_sessions(sessions: List[Dict]):
+    """Display a list of sessions in summary format."""
+    if not sessions:
+        console.print("[yellow]No sessions recorded yet[/yellow]")
+        return
+
+    console.print(f"\n[bold cyan]🔄 Recent Sessions[/bold cyan] [dim]({len(sessions)} total)[/dim]\n")
+
+    table = Table(show_header=True, header_style="bold cyan", box=box.ROUNDED)
+    table.add_column("#", style="dim", width=4)
+    table.add_column("When", style="cyan")
+    table.add_column("Duration", style="green")
+    table.add_column("Files", justify="right", style="blue")
+    table.add_column("Entries", justify="right", style="yellow")
+    table.add_column("Summary", style="white")
+
+    for i, session in enumerate(sessions, 1):
+        # Format timestamp
+        try:
+            end_dt = datetime.fromisoformat(session['end_time'].replace('Z', '+00:00'))
+            when = format_timestamp(session['end_time'])
+        except:
+            when = "unknown"
+
+        # Format duration
+        duration_min = session.get('duration_minutes', 0)
+        if duration_min < 60:
+            duration = f"{duration_min}m"
+        else:
+            hours = duration_min // 60
+            mins = duration_min % 60
+            duration = f"{hours}h {mins}m" if mins > 0 else f"{hours}h"
+
+        # Count files and entries
+        files_count = len(session.get('files_modified', []))
+        entries = session.get('workshop_entries', {})
+        total_entries = sum(entries.values())
+
+        # Get summary
+        summary = session.get('summary', '')
+        if len(summary) > 50:
+            summary = summary[:47] + "..."
+
+        table.add_row(
+            str(i),
+            when,
+            duration,
+            str(files_count),
+            str(total_entries),
+            summary
+        )
+
+    console.print(table)
+    console.print()
+    console.print("[dim]Use `workshop session <number>` or `workshop session last` to see details[/dim]\n")
+
+
+def display_session_detail(session: Dict):
+    """Display detailed information about a single session."""
+
+    # Format timestamps
+    try:
+        start_dt = datetime.fromisoformat(session['start_time'].replace('Z', '+00:00'))
+        end_dt = datetime.fromisoformat(session['end_time'].replace('Z', '+00:00'))
+        start_str = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+        end_str = end_dt.strftime('%H:%M:%S')
+    except:
+        start_str = session.get('start_time', 'unknown')
+        end_str = session.get('end_time', 'unknown')
+
+    # Format duration
+    duration_min = session.get('duration_minutes', 0)
+    if duration_min < 60:
+        duration = f"{duration_min} minutes"
+    else:
+        hours = duration_min // 60
+        mins = duration_min % 60
+        if mins > 0:
+            duration = f"{hours} hour{'s' if hours != 1 else ''} {mins} minutes"
+        else:
+            duration = f"{hours} hour{'s' if hours != 1 else ''}"
+
+    # Build header
+    console.print(f"\n[bold cyan]🔄 Session Details[/bold cyan]\n")
+
+    # Session info
+    console.print(f"[bold]Session ID:[/bold] {session['id'][:12]}...")
+    console.print(f"[bold]Started:[/bold] {start_str}")
+    console.print(f"[bold]Ended:[/bold] {end_str}")
+    console.print(f"[bold]Duration:[/bold] {duration}")
+
+    if session.get('branch'):
+        console.print(f"[bold]Branch:[/bold] {session['branch']}")
+
+    if session.get('reason'):
+        console.print(f"[bold]End Reason:[/bold] {session['reason']}")
+
+    # Summary
+    if session.get('summary'):
+        console.print(f"\n[bold cyan]Summary:[/bold cyan]")
+        console.print(f"  {session['summary']}")
+
+    # Workshop entries
+    entries = session.get('workshop_entries', {})
+    total_entries = sum(entries.values())
+    if total_entries > 0:
+        console.print(f"\n[bold cyan]Workshop Entries:[/bold cyan]")
+        for entry_type, count in entries.items():
+            if count > 0:
+                emoji = get_type_emoji(entry_type.rstrip('s'))  # Remove plural 's'
+                console.print(f"  {emoji} {entry_type.capitalize()}: {count}")
+
+    # Files modified
+    files = session.get('files_modified', [])
+    if files:
+        console.print(f"\n[bold cyan]Files Modified:[/bold cyan] [dim]({len(files)} total)[/dim]")
+        for file_path in files[:10]:  # Show first 10
+            console.print(f"  [blue]{file_path}[/blue]")
+        if len(files) > 10:
+            console.print(f"  [dim]... and {len(files) - 10} more[/dim]")
+
+    # Commands run
+    commands = session.get('commands_run', [])
+    if commands:
+        console.print(f"\n[bold cyan]Commands Run:[/bold cyan] [dim]({len(commands)} total)[/dim]")
+        for cmd in commands[:5]:  # Show first 5
+            console.print(f"  [green]$[/green] [dim]{cmd}[/dim]")
+        if len(commands) > 5:
+            console.print(f"  [dim]... and {len(commands) - 5} more[/dim]")
+
+    # User requests
+    requests = session.get('user_requests', [])
+    if requests:
+        console.print(f"\n[bold cyan]User Requests:[/bold cyan] [dim]({len(requests)} total)[/dim]")
+        for req in requests[:3]:  # Show first 3
+            preview = req[:80] + "..." if len(req) > 80 else req
+            console.print(f"  • {preview}")
+        if len(requests) > 3:
+            console.print(f"  [dim]... and {len(requests) - 3} more[/dim]")
+
+    console.print()
