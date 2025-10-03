@@ -382,7 +382,8 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 - Track preferences: `workshop preference "<text>" --category code_style`
 - Manage state: `workshop goal add "<text>"` and `workshop next "<text>"`
 
-**Query context when needed:**
+**Query context when needed (use these frequently!):**
+- `workshop why "<topic>"` - THE KILLER FEATURE! Answers "why did we do X?" - prioritizes decisions with reasoning
 - `workshop context` - Current session summary
 - `workshop search "<query>"` - Find relevant entries
 - `workshop recent` - Recent activity
@@ -394,6 +395,8 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 - User preferences and coding style
 - Gotchas and constraints
 - Current goals and next steps
+
+**Best Practice:** When you wonder "why did we choose X?" or "why is this implemented this way?", run `workshop why "X"` first before asking the user!
 
 **Note:** Only use Workshop if it's installed in the project. Check with `command -v workshop` or try running a workshop command."""
 
