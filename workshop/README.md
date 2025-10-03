@@ -6,6 +6,24 @@ Persistent context and memory tool for Claude Code sessions.
 
 ```bash
 pip install -e .
+
+# Set up Claude Code integration (recommended)
+workshop init
+```
+
+This will:
+- Add Workshop instructions to global Claude Code settings (`~/.claude/settings.json`)
+- Copy integration files to local project (`.claude/` directory)
+- Enable automatic context loading at session start
+
+### Manual Installation Options
+
+```bash
+# Global only (Claude checks for Workshop in all projects)
+workshop init --global
+
+# Local only (auto-load context in current project)
+workshop init --local
 ```
 
 ## Quick Start

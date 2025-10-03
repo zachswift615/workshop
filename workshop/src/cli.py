@@ -314,5 +314,184 @@ def info():
     click.echo(f"📍 Next steps: {next_steps}\n")
 
 
+@main.command()
+@click.option('--global', 'global_config', is_flag=True, help='Set up global Claude Code integration')
+@click.option('--local', 'local_config', is_flag=True, help='Set up local project integration')
+def init(global_config, local_config):
+    """Set up Claude Code integration for Workshop"""
+    import json
+    import shutil
+    from pathlib import Path
+
+    # If no flags specified, default to both
+    if not global_config and not local_config:
+        global_config = True
+        local_config = True
+
+    success_messages = []
+
+    # Global configuration
+    if global_config:
+        global_settings_path = Path.home() / ".claude" / "settings.json"
+        global_settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Read existing settings or create new
+        if global_settings_path.exists():
+            with open(global_settings_path, 'r') as f:
+                try:
+                    settings = json.load(f)
+                except json.JSONDecodeError:
+                    settings = {}
+        else:
+            settings = {}
+
+        # Add Workshop custom instructions
+        workshop_instructions = """## Workshop CLI - Persistent Context Tool
+
+If the `workshop` CLI is available in this project, use it liberally to maintain context across sessions.
+
+**Check for Workshop at session start:**
+- Run `workshop context` to load existing project context
+- If Workshop is not installed, continue normally
+
+**Use Workshop throughout sessions to:**
+- Record decisions: `workshop decision "<text>" -r "<reasoning>"`
+- Document gotchas: `workshop gotcha "<text>" -t tag1 -t tag2`
+- Add notes: `workshop note "<text>"`
+- Track preferences: `workshop preference "<text>" --category code_style`
+- Manage state: `workshop goal add "<text>"` and `workshop next "<text>"`
+
+**Query context when needed:**
+- `workshop context` - Current session summary
+- `workshop search "<query>"` - Find relevant entries
+- `workshop recent` - Recent activity
+- `workshop summary` - Activity overview
+
+**Important:** Workshop helps maintain continuity across sessions. Document:
+- Architectural decisions with reasoning
+- Failed approaches and why they didn't work
+- User preferences and coding style
+- Gotchas and constraints
+- Current goals and next steps
+
+**Note:** Only use Workshop if it's installed in the project. Check with `command -v workshop` or try running a workshop command."""
+
+        # Append to existing custom instructions or create new
+        existing_instructions = settings.get('customInstructions', '')
+        if 'Workshop CLI' not in existing_instructions:
+            if existing_instructions:
+                settings['customInstructions'] = existing_instructions + '\n\n' + workshop_instructions
+            else:
+                settings['customInstructions'] = workshop_instructions
+
+            # Write back
+            with open(global_settings_path, 'w') as f:
+                json.dump(settings, f, indent=2)
+
+            success_messages.append(f"✓ Global configuration updated: {global_settings_path}")
+        else:
+            success_messages.append(f"ℹ Global configuration already contains Workshop instructions")
+
+    # Local configuration
+    if local_config:
+        local_claude_dir = Path.cwd() / ".claude"
+
+        # Get the template .claude directory from workshop package
+        try:
+            workshop_root = Path(__file__).parent.parent.parent
+            template_dir = workshop_root / ".claude"
+
+            if not template_dir.exists():
+                error("Workshop .claude template directory not found")
+                click.echo("Please ensure Workshop is properly installed")
+                return
+
+            # Create .claude directory if it doesn't exist
+            local_claude_dir.mkdir(parents=True, exist_ok=True)
+
+            # Copy files
+            files_copied = []
+
+            # Copy settings.json (merge if exists)
+            settings_src = template_dir / "settings.json"
+            settings_dst = local_claude_dir / "settings.json"
+
+            if settings_src.exists():
+                with open(settings_src, 'r') as f:
+                    template_settings = json.load(f)
+
+                if settings_dst.exists():
+                    with open(settings_dst, 'r') as f:
+                        try:
+                            existing = json.load(f)
+                        except json.JSONDecodeError:
+                            existing = {}
+
+                    # Merge settings
+                    if 'hooks' not in existing:
+                        existing['hooks'] = template_settings.get('hooks', {})
+                        files_copied.append('settings.json (hooks added)')
+
+                    if 'customInstructions' not in existing:
+                        existing['customInstructions'] = template_settings.get('customInstructions', '')
+                        files_copied.append('settings.json (instructions added)')
+
+                    with open(settings_dst, 'w') as f:
+                        json.dump(existing, f, indent=2)
+                else:
+                    shutil.copy2(settings_src, settings_dst)
+                    files_copied.append('settings.json')
+
+            # Copy workshop-session-start.sh
+            script_src = template_dir / "workshop-session-start.sh"
+            script_dst = local_claude_dir / "workshop-session-start.sh"
+            if script_src.exists() and not script_dst.exists():
+                shutil.copy2(script_src, script_dst)
+                script_dst.chmod(0o755)  # Make executable
+                files_copied.append('workshop-session-start.sh')
+
+            # Copy commands directory
+            commands_src = template_dir / "commands"
+            commands_dst = local_claude_dir / "commands"
+            if commands_src.exists() and not commands_dst.exists():
+                shutil.copytree(commands_src, commands_dst)
+                # Make scripts executable
+                for script in commands_dst.glob("*.sh"):
+                    script.chmod(0o755)
+                files_copied.append('commands/')
+
+            # Copy README
+            readme_src = template_dir / "README.md"
+            readme_dst = local_claude_dir / "README.md"
+            if readme_src.exists() and not readme_dst.exists():
+                shutil.copy2(readme_src, readme_dst)
+                files_copied.append('README.md')
+
+            if files_copied:
+                success_messages.append(f"✓ Local configuration created: .claude/")
+                for file in files_copied:
+                    success_messages.append(f"  • {file}")
+            else:
+                success_messages.append("ℹ Local configuration already exists")
+
+        except Exception as e:
+            error(f"Failed to set up local configuration: {e}")
+            return
+
+    # Display results
+    click.echo("\n📝 Workshop Claude Code Integration Setup\n")
+    for msg in success_messages:
+        click.echo(msg)
+
+    click.echo("\n✨ Setup complete! Workshop will now be available in Claude Code sessions.")
+    click.echo("\nNext steps:")
+    if local_config:
+        click.echo("  1. Start a new Claude Code session in this project")
+        click.echo("  2. Workshop context will load automatically!")
+    if global_config:
+        click.echo("  • Claude will check for Workshop in all projects")
+        click.echo("  • Install Workshop per-project to enable it")
+
+
 if __name__ == '__main__':
     main()
