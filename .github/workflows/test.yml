@@ -35,9 +35,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install -e "./workshop[dev]"
 
     - name: Run tests with coverage
+      working-directory: ./workshop
       run: |
         pytest --cov=src --cov-branch --cov-report=xml --cov-report=term
 
@@ -46,7 +47,7 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./coverage.xml
+        file: ./workshop/coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
@@ -64,18 +65,21 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install -e "./workshop[dev]"
         pip install flake8 black isort
 
     - name: Check code formatting with black
+      working-directory: ./workshop
       run: black --check src tests
       continue-on-error: true
 
     - name: Check import sorting with isort
+      working-directory: ./workshop
       run: isort --check-only src tests
       continue-on-error: true
 
     - name: Lint with flake8
+      working-directory: ./workshop
       run: |
         # Stop the build if there are Python syntax errors or undefined names
         flake8 src tests --count --select=E9,F63,F7,F82 --show-source --statistics
