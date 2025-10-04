@@ -6,310 +6,550 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Give Claude long-term memory for your projects.**
+**Give Claude Code long-term memory and project knowledge.**
 
-Workshop is a persistent memory tool that lets Claude Code remember your decisions, preferences, and project context across sessions. Install it once, and Claude automatically maintains institutional knowledge about your codebase - no manual note-taking required.
+Workshop is a production-ready context management system that gives Claude Code institutional memory. It automatically captures decisions, gotchas, and learnings from your conversations—and can even import months of past session history.
 
-**For developers using Claude Code** - your AI pair programmer will remember why you made architectural choices, what gotchas to avoid, and what you're working on, even weeks later.
+No manual note-taking. No context loss. Just continuous, persistent project knowledge.
 
-## How It Works
+---
 
-1. **You install Workshop**: `pip install claude-workshop`
-2. **You run setup once**: `workshop init`
-3. **Claude does everything else**: Records decisions, maintains context, answers "why" questions
+## 🎯 Why Workshop?
 
-Claude automatically:
-- 📝 Records architectural decisions with reasoning as you discuss them
-- ⚠️ Documents gotchas and constraints as you discover them
-- 🔄 Captures session summaries (files changed, commands run, what you worked on)
-- 🧠 Answers "why did we choose X?" questions by searching past decisions
-- 🎯 Tracks your current goals and next steps
-- 🔍 Provides full-text search across all project knowledge
-- 📥 **NEW:** Imports historical Claude Code sessions to backfill knowledge
+**The Problem**: Claude Code has amazing conversations but terrible memory. Every new session starts from scratch. Your architectural decisions, lessons learned, and project context vanish after each compaction.
 
-## Installation
+**The Solution**: Workshop gives Claude persistent memory. It automatically:
+- 📝 **Records decisions** with reasoning as you discuss them
+- ⚠️ **Documents gotchas** and constraints as you discover them
+- 🔄 **Captures session summaries** when conversations end
+- 🧠 **Answers "why" questions** by searching past decisions
+- 📥 **Imports historical sessions** to backfill months of knowledge
+- 🎯 **Tracks goals and blockers** across sessions
+
+**Result**: Claude remembers everything about your project, even weeks or months later.
+
+---
+
+## ⚡ Quick Start
+
+```bash
+# Install
+pip install claude-workshop
+
+# Set up Claude Code integration (one-time)
+workshop init
+
+# Import your past sessions (optional but recommended)
+workshop import --execute
+```
+
+That's it! Claude now has persistent memory in this project.
+
+**In your next Claude Code session**, try:
+```
+"What decisions have we made about the database?"
+"What gotchas should I know about?"
+"What were we working on last session?"
+```
+
+Claude will search Workshop's knowledge base and give you context-aware answers.
+
+---
+
+## 🚀 Key Features
+
+### 1. **Automatic Context Capture**
+Claude automatically records important information as you work:
+- Architectural decisions with reasoning
+- Gotchas, constraints, and lessons learned
+- Session summaries (what you worked on, files changed)
+- User preferences and coding style
+- Current goals and blockers
+
+**You do nothing**—it just works.
+
+### 2. **Historical Session Import** 🔥
+The game-changer: Import your existing Claude Code conversation history.
+
+```bash
+workshop import --execute
+```
+
+Workshop analyzes past sessions using pattern matching to extract:
+- Decisions: "We decided to use PostgreSQL because..."
+- Gotchas: "Watch out for the rate limit on this API..."
+- Discoveries: "Turns out the cache needs to be invalidated..."
+- Summaries: Complete session summaries from compactions
+
+**This means Workshop can learn from conversations you had weeks or months ago**, giving Claude instant access to all your project's history.
+
+### 3. **Smart Search & Context**
+Claude can query Workshop to answer questions:
+
+```bash
+workshop why "using zustand"     # Why did we choose this?
+workshop search "authentication"  # Find all auth-related entries
+workshop context                  # Current project state
+workshop sessions                 # Past session summaries
+```
+
+Full-text search powered by SQLite FTS5 makes everything instantly retrievable.
+
+### 4. **Per-Project Memory**
+Each project gets its own knowledge base:
+- Per-project `.workshop/workshop.db` database
+- Auto-configuration via `~/.workshop/config.json`
+- Works seamlessly across project directories
+- Optional web UI for browsing (`workshop web`)
+
+### 5. **Production-Ready**
+- ✅ 63% test coverage (128 tests)
+- ✅ Cross-platform (macOS, Linux, Windows)
+- ✅ Schema migrations for upgrades
+- ✅ Robust error handling
+- ✅ Type-safe with comprehensive testing
+
+---
+
+## 📖 How It Works
+
+### Setup (One-Time)
 
 ```bash
 pip install claude-workshop
-
-# Set up Claude Code integration (recommended)
 workshop init
 ```
 
-This sets up Claude Code integration:
-- **Global**: Adds Workshop instructions to `~/.claude/settings.json` (Claude will use Workshop in all your projects)
-- **Local**: Copies integration files to `.claude/` (auto-loads context at session start, captures session summaries at session end)
+This configures Claude Code to:
+1. Load Workshop context at session start
+2. Record knowledge automatically during conversations
+3. Capture session summaries at session end
 
-That's it! Start a new Claude Code session and Claude will automatically maintain your project's institutional knowledge.
+### Automatic Operation
 
-### What Gets Set Up
+Once set up, Workshop works invisibly in the background:
 
-The `workshop init` command configures Claude Code to:
-- Load existing context at the start of each session
-- Record decisions, gotchas, and preferences as you work
-- Capture session summaries automatically when sessions end
-- Answer "why" questions by searching past decisions
+**Session Start** → Claude loads project context from Workshop
+**During Conversation** → Claude records decisions/gotchas as you discuss them
+**Session End** → Workshop captures session summary automatically
 
-## What You Can Do (Optional)
+### Manual Usage (Optional)
 
-While Claude handles most Workshop interactions automatically, you can also use the CLI directly:
+While Claude handles everything automatically, you can also:
 
 ```bash
-# Query what Claude has learned
-workshop why "using zustand"        # Why did we make this choice?
-workshop context                    # What's the current project state?
-workshop sessions                   # What happened in past sessions?
-workshop recent                     # What was recorded recently?
+# Query knowledge
+workshop why "database choice"
+workshop context
+workshop recent
 
-# Manually add entries (though Claude does this automatically)
-workshop decision "Using PostgreSQL" -r "Need ACID guarantees for transactions"
-workshop gotcha "API rate limit is 100 req/min"
-workshop goal add "Implement caching layer"
+# Manually add entries
+workshop decision "Using Redis for caching" -r "Need sub-millisecond latency"
+workshop gotcha "API has 100 req/min rate limit"
+workshop goal add "Implement retry logic"
+
+# Import history
+workshop import --execute
+workshop import-status
+
+# Manage entries
+workshop search "authentication"
+workshop delete <id>
+
+# Admin
+workshop info
+workshop web  # Launch web UI
 ```
 
-**Most users never need to run these commands** - just let Claude manage everything!
+---
 
-### Import Historical Sessions (NEW in v0.2.0!)
+## 📥 Importing Historical Sessions
 
-Bootstrap Workshop with knowledge from past Claude Code sessions:
+One of Workshop's most powerful features: **import months of past conversations**.
+
+### Basic Import
 
 ```bash
-# Import current project's history
-workshop import                 # Preview what would be imported
-workshop import --execute       # Actually import historical sessions
+# Preview what would be imported (safe, read-only)
+workshop import
 
-# Import specific files
-workshop import session.jsonl --execute
+# Actually import sessions
+workshop import --execute
 
-# Interactive review
-workshop import --interactive --execute
-
-# Check what's been imported
+# Check import status
 workshop import-status
 ```
 
-Workshop automatically:
-- Extracts decisions, gotchas, and preferences from past conversations
-- Tracks what's been imported to avoid duplicates
-- Incrementally imports new sessions as they're created
-- Uses pattern matching to identify valuable knowledge
-
-### Export for Web Chat
-
-Want to continue a conversation in Claude.ai web chat with full context from your Claude Code sessions?
+### Advanced Import
 
 ```bash
-workshop export              # Export last month of context
-workshop export --recent     # Export last week only
-workshop export --context    # Export just current goals/state
-workshop export --full       # Export everything including notes
-workshop export -o context.md # Save to file
+# Import specific file
+workshop import ~/.claude/projects/my-project/session.jsonl --execute
+
+# Interactive review (approve each extraction)
+workshop import --interactive --execute
+
+# See detailed extraction preview
+workshop import --verbose
 ```
 
-Copy the output and paste it into a web chat to give Claude continuity between Code and web sessions!
+### What Gets Imported
 
-### Web Admin Interface
+Workshop uses intelligent pattern matching to extract:
 
-Workshop includes a web-based admin interface for browsing and managing your knowledge base:
+- **Decisions**: "We chose X because Y"
+- **Gotchas**: "Watch out for...", "Important to note..."
+- **Discoveries**: "Found that...", "Turns out..."
+- **Summaries**: Complete session summaries from compactions
+- **Preferences**: User coding style and preferences
 
+Each extraction includes:
+- Confidence score (0.0-1.0)
+- Source message UUID for traceability
+- Timestamp for temporal context
+- Automatic deduplication
+
+### Import Intelligence
+
+Workshop is smart about imports:
+- ✅ Tracks what's been imported (no duplicates)
+- ✅ Incremental imports (only new sessions)
+- ✅ Handles compaction summaries (months of context)
+- ✅ Filters noise (code snippets, JSON, hooks)
+- ✅ Validates content quality before storing
+
+---
+
+## 🎨 Example Workflows
+
+### Starting a New Session
 ```bash
-# Start the web server (requires Flask)
-pip install "claude-workshop[web]"
-workshop web
+claude  # Start Claude Code
 
-# Custom port
-workshop web --port 8080
+# Claude automatically loads Workshop context:
+# "📝 Workshop Context Available
+#  Recent decisions: Using PostgreSQL, Zustand for state
+#  Active goals: Implement caching layer
+#  Gotchas: API rate limit 100/min..."
 ```
 
-Then open http://localhost:5000 in your browser.
-
-**Features:**
-- **Dashboard**: Stats and recent entries
-- **Browse**: Searchable, filterable list of all entries
-- **View/Edit**: Click any entry to view details or make edits
-- **Delete**: Remove outdated or incorrect entries
-- **Settings**: View and edit your `~/.workshop/config.json`
-
-The Settings page lets you:
-- View/edit configuration with syntax highlighting
-- Register new projects manually
-- Validate configuration and test paths
-- See auto-detected vs manually configured projects
-
-## Data Storage
-
-Workshop uses SQLite for fast, efficient storage:
-
-### Database Locations
-
-Workshop automatically finds the right database location using this priority order:
-
-1. **Auto-detected** (default): `.workshop/workshop.db` at your git root
-2. **Fallback**: `.workshop/workshop.db` in current directory
-3. **Custom**: Configure via `~/.workshop/config.json` (see Configuration below)
-
-### Claude Code Session Files (JSONL)
-
-Claude Code stores conversation transcripts that Workshop can import:
-
-**macOS & Linux:**
+### Querying Past Decisions
 ```
-~/.claude/projects/<normalized-project-path>/*.jsonl
+You: "Why did we choose PostgreSQL over MongoDB?"
+
+Claude: *searches Workshop* "According to the decision recorded 2 weeks ago,
+you chose PostgreSQL because you needed ACID guarantees for transactions and
+complex relational queries. The reasoning was that MongoDB's eventual
+consistency wasn't suitable for financial data."
 ```
-Example: `/Users/name/my-project` → `~/.claude/projects/-Users-name-my-project/*.jsonl`
 
-**Windows:**
+### Bootstrapping a Project
+```bash
+# You've been working in Claude Code for months
+# Install Workshop and import everything:
+
+pip install claude-workshop
+workshop init
+workshop import --execute
+
+# Workshop now has months of project knowledge
+# Claude can answer questions about past decisions immediately
 ```
-%USERPROFILE%\.claude\projects\<normalized-project-path>\*.jsonl
+
+---
+
+## 🗂️ Entry Types
+
+Workshop tracks different types of knowledge:
+
+| Type | Icon | Purpose | Example |
+|------|------|---------|---------|
+| **decision** | 💡 | Architectural choices with reasoning | "Using PostgreSQL for ACID guarantees" |
+| **note** | 📝 | General observations and findings | "API endpoint returns paginated results" |
+| **gotcha** | ⚠️ | Constraints, limitations, warnings | "Rate limit is 100 requests per minute" |
+| **preference** | 👤 | User coding style preferences | "Prefer async/await over promises" |
+| **goal** | 🎯 | Current objectives | "Implement caching layer" |
+| **blocker** | 🛑 | Issues preventing progress | "Waiting for API key from vendor" |
+| **next_step** | 📍 | Immediate next actions | "Add error handling to login flow" |
+
+---
+
+## 📋 CLI Commands
+
+### Query & Search
+```bash
+workshop why <query>           # Search decisions with reasoning
+workshop search <query>        # Full-text search all entries
+workshop context               # Show current project state
+workshop recent                # Show recent entries
+workshop sessions              # Show past session summaries
+workshop info                  # Show workspace information
 ```
-Example: `C:\Users\name\my-project` → `%USERPROFILE%\.claude\projects\C-Users-name-my-project\*.jsonl`
 
-**Path Normalization:**
-- Forward slashes (`/`) become hyphens (`-`)
-- Underscores (`_`) become hyphens (`-`)
-- Drive letters are preserved on Windows
+### Add Entries
+```bash
+workshop decision <text> -r <reasoning>  # Record decision
+workshop note <text>                     # Add note
+workshop gotcha <text>                   # Record gotcha
+workshop preference <text>               # Record preference
+workshop goal add <text>                 # Add goal
+workshop blocker add <text>              # Add blocker
+workshop next add <text>                 # Add next step
+```
 
-### Configuration File
+### Goals & Next Steps
+```bash
+workshop goal list              # Show all goals
+workshop goal done <id>         # Mark goal complete
+workshop next                   # Show next steps
+workshop next done <id>         # Mark step complete
+workshop next skip <id>         # Skip step
+```
 
-Workshop supports a global config file at `~/.workshop/config.json`:
+### Import & Export
+```bash
+workshop import                 # Preview import (read-only)
+workshop import --execute       # Import sessions
+workshop import <file> --execute  # Import specific file
+workshop import --interactive   # Review each extraction
+workshop import-status          # Show import history
+workshop export                 # Export context for web chat
+```
+
+### Manage
+```bash
+workshop delete <id>            # Delete entry by ID
+workshop clear <date>           # Delete entries before date
+workshop web                    # Launch web UI (optional)
+```
+
+---
+
+## 🔧 Configuration
+
+Workshop uses `~/.workshop/config.json` for per-project settings:
 
 ```json
 {
   "version": "1.0",
   "default_mode": "per-project",
   "projects": {
-    "/Users/name/my-project": {
-      "database": "/Users/name/my-project/.workshop/workshop.db",
-      "jsonl_path": "~/.claude/projects/-Users-name-my-project",
+    "/Users/you/myproject": {
+      "database": "/Users/you/myproject/.workshop/workshop.db",
+      "jsonl_path": "~/.claude/projects/-Users-you-myproject",
       "auto_import": true
     }
-  },
-  "global": {
-    "database": "~/.workshop/workshop.db",
-    "enabled": false
   }
 }
 ```
 
-The config file:
-- Auto-registers projects when you first use Workshop in them
-- Allows manual overrides for database and JSONL locations
-- Can be edited via the Web UI (see Web Admin Interface below)
+**Auto-configured on first use** - you typically don't need to edit this manually.
 
-### Migration from JSON
+### Database Location
 
-If you're upgrading from an earlier version that used JSON storage, Workshop will automatically migrate your data to SQLite on first run and create a backup of your JSON file.
+By default, Workshop stores data in `.workshop/workshop.db` at your project root.
 
-## Claude Code Integration
+You can customize per-project in the config, or use the optional web UI to manage settings.
 
-Workshop integrates seamlessly with Claude Code to maintain context across sessions.
+---
 
-### Global Setup (Recommended)
+## 🌐 Web UI (Optional)
 
-Add Workshop instructions to your global Claude Code settings so it's available in all projects:
+Workshop includes an optional web interface:
 
-**Already done!** If you have `~/.claude/settings.json` configured, Claude will automatically:
-- Check for Workshop at session start
-- Use Workshop to record decisions, gotchas, and preferences
-- Query Workshop for historical context
+```bash
+workshop web
+# Opens http://localhost:5001
+```
 
-### Project-Specific Setup
+Features:
+- Browse all entries by type
+- Full-text search
+- Edit and delete entries
+- View session summaries
+- Manage configuration
 
-For per-project integration with automatic context loading:
+Great for exploring Workshop's knowledge base visually!
 
-1. Copy `.claude/` directory from this repo to your project
-2. The SessionStart hook will auto-load Workshop context
-3. Custom instructions will guide Claude's Workshop usage
+---
 
-See `.claude/README.md` for details.
+## 🔍 JSONL File Locations
 
-### How It Works
+Workshop imports from Claude Code's JSONL session files:
 
-- **Session Start**: Claude checks if Workshop is available
-- **During Session**: Claude records important information:
-  - Architectural decisions with reasoning
-  - Failed approaches and why
-  - User preferences and coding style
-  - Gotchas and constraints
-  - Current goals and next steps
-- **Context Queries**: Claude searches Workshop when needing historical context
+**macOS/Linux:**
+```
+~/.claude/projects/<normalized-project-path>/
+```
 
-### Benefits
+**Windows:**
+```
+%USERPROFILE%\.claude\projects\<normalized-project-path>\
+```
 
-- **Continuity**: Pick up exactly where you left off
-- **Institutional Knowledge**: Never lose context about why things are the way they are
-- **Collaboration**: Share context with future sessions (and future you!)
-- **Efficiency**: Avoid re-discovering the same information
+**Path Normalization:**
+- `/Users/name/project` → `-Users-name-project`
+- Underscores in project names are preserved
 
+Workshop auto-detects the correct location. If import can't find files, it provides platform-specific troubleshooting.
 
-## Commands Reference
+---
 
-### Write Entries
-- `workshop note <text>` - Add a note
-- `workshop decision <text> -r <reasoning>` - Record a decision with reasoning  
-- `workshop gotcha <text>` - Document a gotcha or constraint
-- `workshop preference <text>` - Save a user preference
-- `workshop antipattern <text>` - Record an antipattern to avoid
+## 🤝 Integration with Claude Code
 
-### Query & Search
-- `workshop why <query>` - Smart search answering "why did we do X?"
-- `workshop search <query>` - Full-text search across all entries
-- `workshop context` - Show current session context summary
-- `workshop recent` - Show recent entries
-- `workshop read --type <type>` - Filter entries by type
+Workshop provides three integration points:
 
-### Session History
-- `workshop sessions` - List recent sessions
-- `workshop session <id|last>` - View session details
+### 1. Session Start Hook
+Loads project context when Claude Code starts:
+```bash
+~/.claude/projects/myproject/workshop-session-start.sh
+```
 
-### State Management
-- `workshop goal add <text>` - Add a goal
-- `workshop goal list` - List active goals
-- `workshop goal done <text>` - Mark a goal as completed
-- `workshop goal clean` - Remove completed goals
-- `workshop next add <text>` - Add a next step/TODO
-- `workshop next done <text>` - Mark a next step as completed
-- `workshop next clean` - Remove completed next steps
+### 2. Session End Hook
+Captures session summary when Claude Code exits:
+```bash
+~/.claude/projects/myproject/workshop-session-end.sh
+```
 
-### Delete & Clean
-- `workshop delete <id>` - Delete an entry by ID
-- `workshop delete last` - Delete the most recent entry
-- `workshop clean` - Interactively delete entries (last 7 days)
-- `workshop clean --type <type>` - Clean only specific entry type
-- `workshop clean --days <n>` - Clean entries from last N days
-- `workshop clear <date>` - Delete all entries before date (e.g., "2025-01-01" or "30 days ago")
-- `workshop clear <date> --type <type>` - Delete entries of specific type before date
+### 3. Pre-Compact Hook
+Preserves context before compaction:
+```bash
+~/.claude/pre-compact/workshop-pre-compact.sh
+```
 
-### Import & Export
-- `workshop import` - Import historical JSONL sessions (preview mode)
-- `workshop import --execute` - Actually import sessions
-- `workshop import <file.jsonl>` - Import specific file
-- `workshop import --interactive` - Review each extraction
-- `workshop import-status` - Show import history
-- `workshop export` - Export context for web chat (with --recent, --context, --full options)
+**All hooks are set up automatically by `workshop init`.**
 
-### Utilities
-- `workshop info` - Show workspace information
-- `workshop init` - Set up Claude Code integration
+---
 
-## Changelog
+## 📊 Why the Test Coverage Matters
 
-See [CHANGELOG.md](CHANGELOG.md) for a detailed history of all releases and changes.
+Workshop has **63% test coverage** with **128 tests** across:
+- JSONL parsing and pattern extraction (95% coverage)
+- SQLite storage operations (75% coverage)
+- Configuration management (98% coverage)
+- Display and formatting (27% coverage - mostly console I/O)
 
-## License
+This isn't just for show—it means:
+- ✅ Reliable imports that won't corrupt your data
+- ✅ Safe schema migrations when upgrading
+- ✅ Consistent behavior across platforms
+- ✅ Confidence that Workshop won't lose your knowledge
 
-MIT License - see LICENSE file for details.
+**Production-ready means tested.**
 
-## Contributing
+---
+
+## 📝 Example Use Cases
+
+### 1. **Architectural Decision Records**
+```bash
+# Claude automatically captures these during conversations
+workshop why "microservices"
+
+# Output:
+# 💡 DECISION (2 weeks ago)
+# Using microservices architecture for backend
+# Why: Need independent scaling of services, team prefers polyglot approach
+```
+
+### 2. **Onboarding New Team Members**
+```bash
+workshop context
+workshop sessions --limit 10
+
+# New devs can see entire project history:
+# - What decisions were made and why
+# - What gotchas to avoid
+# - Current architecture and patterns
+```
+
+### 3. **Debugging Production Issues**
+```bash
+workshop search "authentication flow"
+
+# Instantly find all discussions about auth:
+# - Original implementation decisions
+# - Known gotchas with OAuth
+# - Recent changes to token handling
+```
+
+### 4. **Resuming After Time Away**
+```bash
+# After weeks off the project:
+workshop recent
+workshop context
+
+# Claude: "Welcome back! Since your last session:
+#  - Completed caching implementation
+#  - Discovered rate limiting issue with API
+#  - Next step: Add retry logic with exponential backoff"
+```
+
+---
+
+## 🎯 Roadmap
+
+Workshop v1.0.0 is feature-complete for core use cases. Future possibilities:
+
+- **Team Sync**: Share Workshop knowledge across team members
+- **Slack/Discord Integration**: Bot that answers project questions
+- **GitHub Integration**: Link decisions to PRs and issues
+- **Advanced Analytics**: Visualize decision timelines
+- **AI-Powered Summaries**: Automatically generate weekly summaries
+
+Have ideas? [Open an issue](https://github.com/zachswift615/workshop/issues/new/choose) or start a [discussion](https://github.com/zachswift615/workshop/discussions)!
+
+---
+
+## 📚 Documentation
+
+- [CHANGELOG.md](CHANGELOG.md) - Version history and release notes
+- [GitHub Issues](https://github.com/zachswift615/workshop/issues) - Bug reports and feature requests
+- [GitHub Discussions](https://github.com/zachswift615/workshop/discussions) - Questions and ideas
+
+---
+
+## 🤝 Contributing
 
 We welcome contributions! If you find a bug or have a feature request, please [open an issue](https://github.com/zachswift615/workshop/issues/new/choose).
 
-For bug reports, please include:
+**For bug reports**, please include:
 - Workshop version (`pip show claude-workshop`)
-- Python version
+- Python version (`python --version`)
 - Operating system
-- Steps to reproduce the issue
-- Any error messages or logs
+- Steps to reproduce
+- Error messages or logs
 
-Pull requests are also welcome at https://github.com/zachswift615/workshop
+**Pull requests** are welcome! For major changes, please open an issue first to discuss.
 
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+Built with [Claude Code](https://claude.ai/code) - an AI pair programmer that needed better memory. Workshop exists because developers and AI assistants both benefit from persistent context.
+
+**Workshop is for Claude, by Claude (and humans who want their AI to remember).**
+
+---
+
+## ⭐ Star History
+
+If Workshop helps your workflow, consider starring the repo to help others discover it!
+
+[![Star History Chart](https://api.star-history.com/svg?repos=zachswift615/workshop&type=Date)](https://star-history.com/#zachswift615/workshop&Date)
+
+---
+
+**Ready to give Claude long-term memory?**
+
+```bash
+pip install claude-workshop && workshop init
+```
+
+🚀 That's it. Claude now remembers everything.

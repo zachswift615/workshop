@@ -5,6 +5,56 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-01-04 🎉
+
+### 🚀 Production Release
+
+Workshop v1.0.0 marks the transition from prototype to production-ready software. This release represents a complete, tested, and polished context management system for Claude Code.
+
+**Why v1.0.0?**
+- ✅ Complete feature set for core use cases
+- ✅ Production-grade reliability (63% test coverage, 128 tests)
+- ✅ Battle-tested JSONL import system
+- ✅ Cross-platform support with CI/CD
+- ✅ Comprehensive documentation and examples
+- ✅ Stable API ready for long-term use
+
+### Added
+- **Completely rewritten README** with:
+  - Clear problem/solution framing
+  - Prominent Quick Start section
+  - Detailed feature explanations with examples
+  - Multiple workflow examples
+  - Comprehensive CLI reference
+  - Production-ready positioning
+- **GitHub issue templates** (bug reports, feature requests)
+- **CHANGELOG.md** with complete version history
+- **Roadmap section** for future enhancements
+
+### Changed
+- **Documentation overhaul** to emphasize:
+  - Historical session import as killer feature
+  - Production-ready status with test coverage
+  - Real-world use cases and workflows
+  - Clear value proposition for developers
+
+### Highlights from v0.x Journey
+
+**The Path to v1.0.0:**
+- v0.1.0: Initial release with core CRUD operations
+- v0.2.0: **Game-changer** - JSONL import feature added
+- v0.3.0: Configuration system and web UI
+- v0.3.4: Test coverage pushed to 63%
+- v1.0.0: **Production-ready** - polished, tested, documented
+
+**What Makes Workshop Production-Ready:**
+1. **Automatic JSONL Import** - Backfill months of conversation history
+2. **Robust Testing** - 128 tests, 63% coverage, CI across platforms
+3. **Smart Extraction** - Pattern matching with confidence scoring
+4. **Reliable Storage** - SQLite with FTS5, schema migrations
+5. **Seamless Integration** - Auto-configured Claude Code hooks
+6. **Professional Polish** - Documentation, issue templates, changelog
+
 ## [0.3.4] - 2025-01-04
 
 ### Added
