@@ -5,6 +5,16 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-01-04
+
+### Fixed
+- **Web UI workspace bug**: Web UI now correctly shows data from the workspace where `workshop web` was launched. Previously, when running `workshop web` in one project and then switching to another project and running it again, the UI would show the first project's data instead of the current project's.
+- CLI now explicitly passes `workspace_dir` to Flask app to ensure correct workspace binding
+- Added warning message to web UI startup explaining workspace behavior
+
+### Added
+- Regression test for web UI workspace bug (`test_web_command_passes_workspace`)
+
 ## [1.0.0] - 2025-01-04 🎉
 
 ### 🚀 Production Release

@@ -6,8 +6,9 @@ import shutil
 from pathlib import Path
 from click.testing import CliRunner
 import pytest
+from unittest.mock import patch, MagicMock
 
-from src.cli import main, note, decision, gotcha, preference, recent, search, context, info
+from src.cli import main, note, decision, gotcha, preference, recent, search, context, info, web
 
 
 @pytest.fixture
@@ -118,3 +119,41 @@ def test_decision_without_reasoning(runner, temp_workspace, monkeypatch):
     monkeypatch.chdir(temp_workspace)
     result = runner.invoke(decision, ['Use React'])
     assert result.exit_code == 0, f"Command failed with: {result.output}"
+
+
+@patch('src.cli.get_storage')
+def test_web_command_passes_workspace(mock_get_storage, runner, temp_workspace, monkeypatch):
+    """
+    Regression test: Web UI should use workspace from where command was run.
+
+    Bug: When running 'workshop web' in project A, then cd to project B and running
+    'workshop web' again, the UI showed project A's data instead of project B's.
+
+    Fix: CLI now explicitly passes workspace_dir to Flask app.run()
+    """
+    pytest.importorskip("flask", reason="Flask not installed")
+
+    # Mock storage to return our temp workspace
+    mock_store = MagicMock()
+    mock_store.workspace_dir = temp_workspace / ".workshop"
+    mock_get_storage.return_value = mock_store
+
+    # Mock Flask's run to prevent actual server startup and capture arguments
+    with patch('src.web.app.run') as mock_flask_run:
+        mock_flask_run.return_value = None
+
+        # Run the web command
+        result = runner.invoke(web, [])
+
+        # Should succeed
+        assert result.exit_code == 0, f"Command failed with: {result.output}"
+
+        # Verify Flask run was called with the correct workspace_dir
+        mock_flask_run.assert_called_once()
+        call_kwargs = mock_flask_run.call_args[1]
+
+        # The workspace_dir should be set and point to our temp workspace
+        assert 'workspace_dir' in call_kwargs, "workspace_dir not passed to Flask app.run()"
+        assert call_kwargs['workspace_dir'] is not None, "workspace_dir is None"
+        assert str(temp_workspace) in str(call_kwargs['workspace_dir']), \
+            f"workspace_dir {call_kwargs['workspace_dir']} doesn't match expected {temp_workspace}"

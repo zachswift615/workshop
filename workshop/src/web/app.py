@@ -16,9 +16,26 @@ from src.config import WorkshopConfig
 app = Flask(__name__)
 app.secret_key = 'workshop-dev-key-change-in-production'
 
+# Store the workspace directory that was active when server started
+# This ensures the web UI shows the correct project's data
+_startup_workspace = None
+
 def get_store():
-    """Get Workshop storage instance"""
-    return WorkshopStorageSQLite()
+    """
+    Get Workshop storage instance.
+
+    Uses the workspace directory from when the server was launched.
+    This ensures each server instance shows the correct project's data.
+    """
+    global _startup_workspace
+    if _startup_workspace is None:
+        # Capture workspace on first call (server startup)
+        store = WorkshopStorageSQLite()
+        _startup_workspace = store.workspace_dir
+        return store
+    else:
+        # Use captured workspace for all subsequent requests
+        return WorkshopStorageSQLite(workspace_dir=_startup_workspace)
 
 def format_timestamp(timestamp_str):
     """Format timestamp as relative time"""
@@ -284,8 +301,17 @@ def api_stats():
 
     return jsonify(stats)
 
-def run(host='127.0.0.1', port=5000, debug=True):
-    """Run the Flask app"""
+def run(host='127.0.0.1', port=5000, debug=True, workspace_dir=None):
+    """
+    Run the Flask app
+
+    Args:
+        workspace_dir: Path to workspace directory. This is set by the CLI
+                      and determines which project's data is shown.
+    """
+    global _startup_workspace
+    if workspace_dir:
+        _startup_workspace = workspace_dir
     app.run(host=host, port=port, debug=debug)
 
 if __name__ == '__main__':

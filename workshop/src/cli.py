@@ -1133,9 +1133,11 @@ def web(host, port, debug):
     click.echo(f"\n🌐 Starting Workshop Web UI...")
     click.echo(f"   Workspace: {workspace_path}")
     click.echo(f"   URL: http://{host}:{port}")
-    click.echo(f"\nPress Ctrl+C to stop\n")
+    click.echo(f"\n⚠️  Note: Web UI shows data from the workspace above.")
+    click.echo(f"   To view a different project, stop this server and run 'workshop web' from that project.\n")
+    click.echo(f"Press Ctrl+C to stop\n")
 
-    run(host=host, port=port, debug=debug)
+    run(host=host, port=port, debug=debug, workspace_dir=workspace_path)
 
 
 def _format_time_ago(dt: datetime) -> str:
