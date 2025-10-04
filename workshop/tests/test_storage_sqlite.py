@@ -46,7 +46,7 @@ def test_add_decision_with_reasoning(temp_storage):
 
     assert entry["type"] == "decision"
     assert entry["content"] == "Use PostgreSQL"
-    assert entry["metadata"] == "Need ACID guarantees"
+    assert entry["reasoning"] == "Need ACID guarantees"
 
 
 def test_add_entry_with_tags(temp_storage):
@@ -149,14 +149,14 @@ def test_search(temp_storage):
     assert len(results) == 2
 
 
-def test_search_empty_query(temp_storage):
-    """Test search with empty query returns all"""
+def test_search_no_results(temp_storage):
+    """Test search with no matches"""
     temp_storage.add_entry("note", "First")
     temp_storage.add_entry("note", "Second")
 
-    results = temp_storage.search("")
+    results = temp_storage.search("nonexistent")
 
-    assert len(results) == 2
+    assert len(results) == 0
 
 
 def test_search_with_limit(temp_storage):
