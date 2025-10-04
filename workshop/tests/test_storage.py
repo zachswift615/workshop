@@ -15,7 +15,8 @@ def temp_workspace():
     """Create a temporary workspace for testing"""
     temp_dir = Path(tempfile.mkdtemp())
     yield temp_dir
-    shutil.rmtree(temp_dir)
+    # Windows-friendly cleanup: ignore errors if files are locked
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @pytest.fixture
