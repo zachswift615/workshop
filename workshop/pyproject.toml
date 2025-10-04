@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "claude-workshop"
-version = "0.1.6"
+version = "0.1.7"
 description = "Persistent context and memory tool for Claude Code sessions"
 readme = "README.md"
 license = {text = "MIT"}
@@ -62,4 +62,8 @@ workshop = "src.cli:main"
 packages = ["src"]
 
 [tool.setuptools.package-data]
-src = ["schema.sql"]
+src = [
+    "schema.sql",
+    "claude_templates/*",
+    "claude_templates/commands/*"
+]

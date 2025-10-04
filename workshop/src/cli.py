@@ -588,11 +588,11 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 
         # Get the template .claude directory from workshop package
         try:
-            workshop_root = Path(__file__).parent.parent.parent
-            template_dir = workshop_root / ".claude"
+            # Get template directory from package
+            template_dir = Path(__file__).parent / "claude_templates"
 
             if not template_dir.exists():
-                error("Workshop .claude template directory not found")
+                error("Workshop claude_templates directory not found")
                 click.echo("Please ensure Workshop is properly installed")
                 return
 
