@@ -1,9 +1,12 @@
 """
-Migration script to convert JSON data to SQLite
+Migration script to convert JSON data to SQLite and handle schema upgrades
 """
 import json
+import sqlite3
+import shutil
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 from .storage import WorkshopStorage  # Old JSON storage
 from .storage_sqlite import WorkshopStorageSQLite  # New SQLite storage
 
@@ -179,3 +182,139 @@ def should_migrate(workspace_dir: Optional[Path] = None) -> bool:
             return False
 
     return False
+
+
+# ============================================================================
+# Schema Version Migrations
+# ============================================================================
+
+def get_schema_version(db_path: Path) -> int:
+    """
+    Get current schema version from database.
+
+    Args:
+        db_path: Path to SQLite database
+
+    Returns:
+        Schema version number (default 1 if not found)
+    """
+    if not db_path.exists():
+        return 0  # Database doesn't exist yet
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.execute("SELECT value FROM config WHERE key = 'schema_version'")
+        row = cursor.fetchone()
+        conn.close()
+        return int(row[0]) if row else 1
+    except:
+        return 1  # Assume version 1 if table doesn't exist
+
+
+def migrate_schema_to_v2(db_path: Path) -> bool:
+    """
+    Migrate schema from v1 to v2: Add import_history table.
+
+    Args:
+        db_path: Path to SQLite database
+
+    Returns:
+        True if migration succeeded
+    """
+    print("🔄 Migrating database schema to v2...")
+
+    # Backup database before migration
+    backup_path = db_path.with_suffix('.db.backup.v1')
+    if not backup_path.exists():
+        shutil.copy2(db_path, backup_path)
+        print(f"  ✓ Created backup: {backup_path.name}")
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+
+        # Add import_history table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS import_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                jsonl_path TEXT NOT NULL,
+                jsonl_hash TEXT,
+                last_message_uuid TEXT,
+                last_message_timestamp TEXT,
+                messages_imported INTEGER,
+                entries_created INTEGER,
+                import_timestamp TEXT NOT NULL,
+                UNIQUE(jsonl_path)
+            )
+        """)
+
+        # Add indexes
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_import_history_path ON import_history(jsonl_path)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_import_history_timestamp ON import_history(import_timestamp DESC)")
+
+        # Update schema version
+        conn.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('schema_version', '2')")
+
+        conn.commit()
+        conn.close()
+
+        print("  ✓ Migration to v2 complete")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ Migration failed: {e}")
+        # Restore from backup
+        if backup_path.exists():
+            shutil.copy2(backup_path, db_path)
+            print(f"  ✓ Restored from backup")
+        return False
+
+
+def migrate_schema(db_path: Path, target_version: int = 2) -> bool:
+    """
+    Migrate schema to target version.
+
+    Args:
+        db_path: Path to SQLite database
+        target_version: Target schema version (default 2)
+
+    Returns:
+        True if migration succeeded or not needed
+    """
+    current_version = get_schema_version(db_path)
+
+    if current_version >= target_version:
+        return True  # Already at or above target version
+
+    if current_version == 0:
+        return True  # New database, will be created with latest schema
+
+    # Apply migrations sequentially
+    if current_version < 2 and target_version >= 2:
+        if not migrate_schema_to_v2(db_path):
+            return False
+
+    return True
+
+
+def auto_migrate_if_needed(workspace_dir: Path) -> bool:
+    """
+    Automatically migrate schema if needed on first use.
+
+    Args:
+        workspace_dir: Workshop workspace directory
+
+    Returns:
+        True if migration succeeded or not needed
+    """
+    db_path = workspace_dir / "workshop.db"
+
+    if not db_path.exists():
+        return True  # New database, no migration needed
+
+    current_version = get_schema_version(db_path)
+    target_version = 2  # Current schema version
+
+    if current_version < target_version:
+        return migrate_schema(db_path, target_version)
+
+    return True

@@ -19,6 +19,7 @@ Claude automatically:
 - 🧠 Answers "why did we choose X?" questions by searching past decisions
 - 🎯 Tracks your current goals and next steps
 - 🔍 Provides full-text search across all project knowledge
+- 📥 **NEW:** Imports historical Claude Code sessions to backfill knowledge
 
 ## Installation
 
@@ -61,6 +62,31 @@ workshop goal add "Implement caching layer"
 ```
 
 **Most users never need to run these commands** - just let Claude manage everything!
+
+### Import Historical Sessions (NEW in v0.2.0!)
+
+Bootstrap Workshop with knowledge from past Claude Code sessions:
+
+```bash
+# Import current project's history
+workshop import                 # Preview what would be imported
+workshop import --execute       # Actually import historical sessions
+
+# Import specific files
+workshop import session.jsonl --execute
+
+# Interactive review
+workshop import --interactive --execute
+
+# Check what's been imported
+workshop import-status
+```
+
+Workshop automatically:
+- Extracts decisions, gotchas, and preferences from past conversations
+- Tracks what's been imported to avoid duplicates
+- Incrementally imports new sessions as they're created
+- Uses pattern matching to identify valuable knowledge
 
 ### Export for Web Chat
 
@@ -167,10 +193,17 @@ See `.claude/README.md` for details.
 - `workshop clear <date>` - Delete all entries before date (e.g., "2025-01-01" or "30 days ago")
 - `workshop clear <date> --type <type>` - Delete entries of specific type before date
 
+### Import & Export
+- `workshop import` - Import historical JSONL sessions (preview mode)
+- `workshop import --execute` - Actually import sessions
+- `workshop import <file.jsonl>` - Import specific file
+- `workshop import --interactive` - Review each extraction
+- `workshop import-status` - Show import history
+- `workshop export` - Export context for web chat (with --recent, --context, --full options)
+
 ### Utilities
 - `workshop info` - Show workspace information
 - `workshop init` - Set up Claude Code integration
-- `workshop export` - Export context for web chat (with --recent, --context, --full options)
 
 ## License
 

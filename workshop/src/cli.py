@@ -844,5 +844,260 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
         click.echo("  • Install Workshop per-project to enable it")
 
 
+# ============================================================================
+# IMPORT COMMANDS
+# ============================================================================
+
+@main.command('import')
+@click.argument('files', nargs=-1, type=click.Path(exists=True))
+@click.option('--execute', is_flag=True, help='Execute import (default is dry-run preview)')
+@click.option('--interactive', '-i', is_flag=True, help='Interactively review each extraction')
+@click.option('--since', help='Only import after date (YYYY-MM-DD or "last-import")')
+@click.option('--force', is_flag=True, help='Re-import even if already processed')
+def import_sessions(files, execute, interactive, since, force):
+    """
+    Import historical sessions from JSONL transcripts.
+
+    By default, imports current project's JSONL files incrementally.
+    Use --execute to actually import (default is preview only).
+
+    Examples:
+      workshop import                    # Preview current project
+      workshop import --execute          # Import current project
+      workshop import file.jsonl -i      # Interactive review
+      workshop import --since 2025-10-01 # Only import after date
+    """
+    from .jsonl_parser import JSONLParser
+    from .storage_sqlite import WorkshopStorageSQLite
+    from datetime import datetime
+    from pathlib import Path
+    import glob
+
+    parser = JSONLParser()
+    store = WorkshopStorageSQLite()
+
+    # Determine which files to import
+    if not files:
+        # Smart default: current project's JSONL directory
+        import os
+        cwd = Path(os.getcwd())
+
+        # Normalize path for Claude's directory structure
+        norm_path = str(cwd).replace('/', '-')
+        if norm_path.startswith('-'):
+            norm_path = norm_path[1:]
+
+        claude_projects = Path.home() / '.claude' / 'projects' / norm_path
+
+        if claude_projects.exists():
+            jsonl_files = list(claude_projects.glob('*.jsonl'))
+        else:
+            error(f"No JSONL files found for current project")
+            click.echo(f"Expected: {claude_projects}")
+            return
+    else:
+        # Expand globs and collect files
+        jsonl_files = []
+        for pattern in files:
+            if '*' in pattern:
+                jsonl_files.extend([Path(f) for f in glob.glob(pattern)])
+            else:
+                jsonl_files.append(Path(pattern))
+
+    if not jsonl_files:
+        display_info("No JSONL files to import")
+        return
+
+    click.echo(f"\n📊 Found {len(jsonl_files)} JSONL file{'s' if len(jsonl_files) != 1 else ''}\n")
+
+    # Process each file
+    total_entries = []
+    files_processed = 0
+    files_skipped = 0
+
+    for jsonl_path in jsonl_files:
+        click.echo(f"Analyzing {jsonl_path.name}...")
+
+        # Check if already imported
+        last_import = store.get_last_import(str(jsonl_path))
+
+        if last_import and not force:
+            # Incremental: resume from last UUID
+            start_uuid = last_import['last_message_uuid']
+
+            # Check if file changed
+            current_hash = parser.calculate_file_hash(jsonl_path)
+            if current_hash == last_import['jsonl_hash']:
+                click.echo(f"  ⏭️  Skipped (no new messages)")
+                files_skipped += 1
+                continue
+        else:
+            start_uuid = None
+
+        # Parse JSONL file
+        try:
+            result = parser.parse_jsonl_file(jsonl_path, start_from_uuid=start_uuid)
+        except Exception as e:
+            error(f"  ✗ Failed to parse: {e}")
+            continue
+
+        # Filter by confidence and date
+        filtered_entries = []
+        for entry in result.entries:
+            # Skip low confidence
+            if entry.confidence < 0.6:
+                continue
+
+            # Filter by date if specified
+            if since:
+                if since == "last-import" and last_import:
+                    cutoff = datetime.fromisoformat(last_import['import_timestamp'])
+                else:
+                    try:
+                        cutoff = datetime.fromisoformat(since)
+                    except:
+                        error(f"Invalid date format: {since}")
+                        return
+
+                entry_time = datetime.fromisoformat(entry.timestamp)
+                if entry_time < cutoff:
+                    continue
+
+            filtered_entries.append(entry)
+
+        if not filtered_entries:
+            click.echo(f"  ⏭️  Skipped (no new entries)")
+            files_skipped += 1
+            continue
+
+        # Show summary
+        decisions = [e for e in filtered_entries if e.type == 'decision']
+        gotchas = [e for e in filtered_entries if e.type == 'gotcha']
+        preferences = [e for e in filtered_entries if e.type == 'preference']
+
+        click.echo(f"  ✓ {len(decisions)} decisions")
+        click.echo(f"  ✓ {len(gotchas)} gotchas")
+        click.echo(f"  ✓ {len(preferences)} preferences")
+
+        # Interactive review
+        if interactive and not execute:
+            click.echo("\n  💡 Use --execute with --interactive to review and import")
+
+        # Store for batch import
+        total_entries.extend([(jsonl_path, result, filtered_entries)])
+        files_processed += 1
+
+    # Summary
+    total_count = sum(len(entries) for _, _, entries in total_entries)
+
+    click.echo(f"\n📊 Import Summary:")
+    click.echo(f"  Files processed: {files_processed}")
+    click.echo(f"  Files skipped: {files_skipped}")
+    click.echo(f"  Total entries: {total_count}")
+
+    if not execute:
+        click.echo(f"\n💡 This was a preview. Use --execute to import")
+        return
+
+    # Execute import
+    click.echo(f"\n📥 Importing...")
+
+    imported_count = 0
+    for jsonl_path, result, entries in total_entries:
+        # Interactive review mode
+        if interactive:
+            reviewed_entries = []
+            for entry in entries:
+                preview = entry.content[:70]
+                if len(entry.content) > 70:
+                    preview += "..."
+
+                click.echo(f"\n[{entry.type}] {preview}")
+                if entry.reasoning:
+                    click.echo(f"  Reasoning: {entry.reasoning}")
+                click.echo(f"  Confidence: {entry.confidence:.2f}")
+
+                if click.confirm("  Import this?", default=True):
+                    reviewed_entries.append(entry)
+
+            entries = reviewed_entries
+
+        # Import entries
+        for entry in entries:
+            store.add_entry(
+                entry_type=entry.type,
+                content=entry.content,
+                reasoning=entry.reasoning
+            )
+            imported_count += 1
+
+        # Record import
+        file_hash = parser.calculate_file_hash(jsonl_path)
+        store.record_import(
+            jsonl_path=str(jsonl_path),
+            jsonl_hash=file_hash,
+            last_uuid=result.last_message_uuid,
+            last_timestamp=result.last_message_timestamp,
+            messages_imported=result.messages_processed,
+            entries_created=len(entries)
+        )
+
+    success(f"Imported {imported_count} entries from {files_processed} files")
+
+
+@main.command('import-status')
+def import_status():
+    """Show import history and statistics"""
+    from .storage_sqlite import WorkshopStorageSQLite
+    from datetime import datetime
+
+    store = WorkshopStorageSQLite()
+    history = store.get_import_history(limit=10)
+
+    if not history:
+        display_info("No imports yet")
+        click.echo("\nRun 'workshop import' to import JSONL sessions")
+        return
+
+    click.echo(f"\n📊 Import History\n")
+
+    for record in history:
+        jsonl_name = Path(record['jsonl_path']).name
+        import_time = datetime.fromisoformat(record['import_timestamp'])
+        time_ago = _format_time_ago(import_time)
+
+        click.echo(f"• {jsonl_name}")
+        click.echo(f"  Imported {time_ago}")
+        click.echo(f"  {record['entries_created']} entries from {record['messages_imported']} messages")
+        click.echo()
+
+    # Show total stats
+    total_files = len(history)
+    total_entries = sum(r['entries_created'] for r in history)
+
+    click.echo(f"Total: {total_entries} entries from {total_files} files")
+
+
+def _format_time_ago(dt: datetime) -> str:
+    """Format datetime as relative time"""
+    from datetime import timedelta
+    now = datetime.now()
+    diff = now - dt
+
+    if diff < timedelta(minutes=1):
+        return "just now"
+    elif diff < timedelta(hours=1):
+        mins = int(diff.total_seconds() / 60)
+        return f"{mins} minute{'s' if mins != 1 else ''} ago"
+    elif diff < timedelta(days=1):
+        hours = int(diff.total_seconds() / 3600)
+        return f"{hours} hour{'s' if hours != 1 else ''} ago"
+    elif diff < timedelta(days=7):
+        days = diff.days
+        return f"{days} day{'s' if days != 1 else ''} ago"
+    else:
+        return dt.strftime("%Y-%m-%d")
+
+
 if __name__ == '__main__':
     main()

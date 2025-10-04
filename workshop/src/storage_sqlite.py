@@ -28,6 +28,10 @@ class WorkshopStorageSQLite:
         # Ensure workspace exists
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
 
+        # Auto-migrate schema if needed
+        from .migrate import auto_migrate_if_needed
+        auto_migrate_if_needed(self.workspace_dir)
+
         # Initialize database
         self._init_db()
 
@@ -861,3 +865,123 @@ class WorkshopStorageSQLite:
             conn.execute("DELETE FROM entries WHERE timestamp < ?", (before_date.isoformat(),))
             conn.commit()
             return len(entry_ids)
+
+    # ========================================================================
+    # Import History Management
+    # ========================================================================
+
+    def record_import(
+        self,
+        jsonl_path: str,
+        jsonl_hash: str,
+        last_uuid: str,
+        last_timestamp: str,
+        messages_imported: int,
+        entries_created: int
+    ) -> None:
+        """
+        Record a JSONL import for incremental tracking.
+
+        Args:
+            jsonl_path: Path to JSONL file
+            jsonl_hash: SHA256 hash of file
+            last_uuid: UUID of last message imported
+            last_timestamp: Timestamp of last message
+            messages_imported: Number of messages processed
+            entries_created: Number of entries created
+        """
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO import_history (
+                    jsonl_path, jsonl_hash, last_message_uuid, last_message_timestamp,
+                    messages_imported, entries_created, import_timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                jsonl_path,
+                jsonl_hash,
+                last_uuid,
+                last_timestamp,
+                messages_imported,
+                entries_created,
+                datetime.now().isoformat()
+            ))
+            conn.commit()
+
+    def get_last_import(self, jsonl_path: str) -> Optional[Dict]:
+        """
+        Get last import record for a JSONL file.
+
+        Args:
+            jsonl_path: Path to JSONL file
+
+        Returns:
+            Import record dict or None if never imported
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT * FROM import_history WHERE jsonl_path = ?
+            """, (jsonl_path,))
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            return {
+                'id': row['id'],
+                'jsonl_path': row['jsonl_path'],
+                'jsonl_hash': row['jsonl_hash'],
+                'last_message_uuid': row['last_message_uuid'],
+                'last_message_timestamp': row['last_message_timestamp'],
+                'messages_imported': row['messages_imported'],
+                'entries_created': row['entries_created'],
+                'import_timestamp': row['import_timestamp']
+            }
+
+    def get_import_history(self, limit: int = 50) -> List[Dict]:
+        """
+        Get recent import history.
+
+        Args:
+            limit: Maximum number of records to return
+
+        Returns:
+            List of import records
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT * FROM import_history
+                ORDER BY import_timestamp DESC
+                LIMIT ?
+            """, (limit,))
+
+            return [
+                {
+                    'id': row['id'],
+                    'jsonl_path': row['jsonl_path'],
+                    'jsonl_hash': row['jsonl_hash'],
+                    'last_message_uuid': row['last_message_uuid'],
+                    'last_message_timestamp': row['last_message_timestamp'],
+                    'messages_imported': row['messages_imported'],
+                    'entries_created': row['entries_created'],
+                    'import_timestamp': row['import_timestamp']
+                }
+                for row in cursor.fetchall()
+            ]
+
+    def is_message_imported(self, uuid: str) -> bool:
+        """
+        Check if a message UUID has been imported.
+
+        Args:
+            uuid: Message UUID to check
+
+        Returns:
+            True if message was already imported
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT COUNT(*) as count FROM entries WHERE id = ?
+            """, (uuid,))
+
+            row = cursor.fetchone()
+            return row['count'] > 0

@@ -150,5 +150,21 @@ CREATE TABLE IF NOT EXISTS config (
     value TEXT NOT NULL
 );
 
+-- Import history: track JSONL imports for incremental updates
+CREATE TABLE IF NOT EXISTS import_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    jsonl_path TEXT NOT NULL,
+    jsonl_hash TEXT,  -- File hash to detect changes
+    last_message_uuid TEXT,  -- Last message UUID imported
+    last_message_timestamp TEXT,
+    messages_imported INTEGER,
+    entries_created INTEGER,
+    import_timestamp TEXT NOT NULL,
+    UNIQUE(jsonl_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_import_history_path ON import_history(jsonl_path);
+CREATE INDEX IF NOT EXISTS idx_import_history_timestamp ON import_history(import_timestamp DESC);
+
 -- Schema version for future migrations
-INSERT OR REPLACE INTO config (key, value) VALUES ('schema_version', '1');
+INSERT OR REPLACE INTO config (key, value) VALUES ('schema_version', '2');
