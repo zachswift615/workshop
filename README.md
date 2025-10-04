@@ -292,11 +292,24 @@ See `.claude/README.md` for details.
 - `workshop info` - Show workspace information
 - `workshop init` - Set up Claude Code integration
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of all releases and changes.
+
 ## License
 
 MIT License - see LICENSE file for details.
 
 ## Contributing
 
-Issues and pull requests welcome at https://github.com/zachswift615/workshop
+We welcome contributions! If you find a bug or have a feature request, please [open an issue](https://github.com/zachswift615/workshop/issues/new/choose).
+
+For bug reports, please include:
+- Workshop version (`pip show claude-workshop`)
+- Python version
+- Operating system
+- Steps to reproduce the issue
+- Any error messages or logs
+
+Pull requests are also welcome at https://github.com/zachswift615/workshop
 
