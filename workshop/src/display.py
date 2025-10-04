@@ -54,6 +54,11 @@ def get_type_emoji(entry_type: str) -> str:
     return emoji_map.get(entry_type, "📌")
 
 
+def display_error(message: str):
+    """Display an error message"""
+    console.print(f"[red]✗ {message}[/red]")
+
+
 def display_entry(entry: Dict, show_full: bool = False):
     """Display a single entry with rich formatting"""
     emoji = get_type_emoji(entry["type"])

@@ -53,3 +53,4 @@ htmlcov/
 !.claude/workshop-session-start.sh
 !.claude/commands/
 !.claude/commands/workshop.sh
+settings.local.json

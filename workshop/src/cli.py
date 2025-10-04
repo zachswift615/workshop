@@ -12,7 +12,8 @@ from .display import (
     display_entry, display_entries, display_context,
     display_preferences, display_current_state,
     display_why_results,
-    success, error, info as display_info
+    success, error, info as display_info,
+    display_error
 )
 
 
