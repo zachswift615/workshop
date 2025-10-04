@@ -224,25 +224,60 @@ class JSONLParser:
         return entries
 
     def _get_message_content(self, message: Dict) -> str:
-        """Extract text content from message"""
+        """Extract text content from message, filtering out system messages"""
         msg_data = message.get('message', {})
 
         if isinstance(msg_data, dict):
             content_parts = msg_data.get('content', [])
 
             if isinstance(content_parts, str):
-                return content_parts
-
-            if isinstance(content_parts, list):
+                content = content_parts
+            elif isinstance(content_parts, list):
                 texts = []
                 for part in content_parts:
-                    if isinstance(part, dict) and part.get('type') == 'text':
-                        texts.append(part.get('text', ''))
+                    if isinstance(part, dict):
+                        # Skip tool results and system messages
+                        if part.get('type') in ['tool_result', 'tool_use']:
+                            continue
+                        if part.get('type') == 'text':
+                            texts.append(part.get('text', ''))
                     elif isinstance(part, str):
                         texts.append(part)
-                return ' '.join(texts)
+                content = ' '.join(texts)
+            else:
+                return ""
+
+            # Filter out obvious noise
+            if self._is_noise(content):
+                return ""
+
+            return content
 
         return ""
+
+    def _is_noise(self, content: str) -> bool:
+        """Check if content is likely noise (hooks, JSON, etc.)"""
+        if not content or len(content) < 20:
+            return True
+
+        # Skip if it looks like JSON
+        if content.strip().startswith(('{', '[', '"role":', '"message":')):
+            return True
+
+        # Skip if it's mostly code/markup
+        code_indicators = ['```', '```python', '```javascript', 'def ', 'function ', 'class ', 'import ']
+        if any(indicator in content for indicator in code_indicators):
+            return True
+
+        # Skip session hooks
+        if 'session-start-hook' in content or 'session-end-hook' in content:
+            return True
+
+        # Skip if it's just an error message fragment
+        if content.startswith(('Error:', 'Traceback', 'AttributeError:', 'KeyError:', 'TypeError:')):
+            return True
+
+        return False
 
     def _extract_decisions(
         self,
@@ -259,6 +294,10 @@ class JSONLParser:
             sentence = self._extract_sentence_around_match(content, match)
 
             if not sentence or len(sentence) < 20:
+                continue
+
+            # Skip if sentence looks like noise
+            if self._is_low_quality_sentence(sentence):
                 continue
 
             # Try to extract reasoning
@@ -290,6 +329,10 @@ class JSONLParser:
             if not sentence or len(sentence) < 15:
                 continue
 
+            # Skip if sentence looks like noise
+            if self._is_low_quality_sentence(sentence):
+                continue
+
             gotchas.append(ExtractedEntry(
                 type='gotcha',
                 content=sentence,
@@ -313,6 +356,10 @@ class JSONLParser:
             sentence = self._extract_sentence_around_match(content, match)
 
             if not sentence or len(sentence) < 15:
+                continue
+
+            # Skip if sentence looks like noise
+            if self._is_low_quality_sentence(sentence):
                 continue
 
             preferences.append(ExtractedEntry(
@@ -351,6 +398,36 @@ class JSONLParser:
                         ))
 
         return entries
+
+    def _is_low_quality_sentence(self, sentence: str) -> bool:
+        """Check if a sentence is likely low quality/noise"""
+        # Too short or too long
+        if len(sentence) < 20 or len(sentence) > 500:
+            return True
+
+        # Contains mostly special characters
+        special_char_ratio = sum(1 for c in sentence if not c.isalnum() and c != ' ') / len(sentence)
+        if special_char_ratio > 0.3:
+            return True
+
+        # Starts with command/code patterns
+        if sentence.strip().startswith(('$', '>', 'npm ', 'cd ', 'ls ', 'git ', 'workshop ')):
+            return True
+
+        # Contains JSON-like patterns
+        if '{' in sentence and '}' in sentence and '"' in sentence:
+            return True
+
+        # Contains newline escapes (suggests it's from JSON)
+        if '\\n' in sentence or '\\t' in sentence:
+            return True
+
+        # Incomplete sentence (no verb/subject structure)
+        words = sentence.split()
+        if len(words) < 4:
+            return True
+
+        return False
 
     def _extract_sentence_around_match(self, text: str, match: re.Match) -> str:
         """Extract the sentence containing a regex match"""
