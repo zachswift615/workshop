@@ -529,6 +529,14 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 script_end_dst.chmod(0o755)  # Make executable
                 files_copied.append('workshop-session-end.sh')
 
+            # Copy workshop-pre-compact.sh
+            script_compact_src = template_dir / "workshop-pre-compact.sh"
+            script_compact_dst = local_claude_dir / "workshop-pre-compact.sh"
+            if script_compact_src.exists() and not script_compact_dst.exists():
+                shutil.copy2(script_compact_src, script_compact_dst)
+                script_compact_dst.chmod(0o755)  # Make executable
+                files_copied.append('workshop-pre-compact.sh')
+
             # Copy commands directory
             commands_src = template_dir / "commands"
             commands_dst = local_claude_dir / "commands"
