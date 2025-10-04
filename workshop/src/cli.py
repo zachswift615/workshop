@@ -883,10 +883,21 @@ def import_sessions(files, execute, interactive, since, force):
         import os
         cwd = Path(os.getcwd())
 
+        # Search upward for .claude/ directory to find the actual project root
+        # This handles cases where git root != project root
+        claude_root = None
+        for parent in [cwd] + list(cwd.parents):
+            if (parent / '.claude').exists():
+                claude_root = parent
+                break
+
+        # Use .claude location if found, otherwise use cwd
+        project_path = claude_root if claude_root else cwd
+
         # Normalize path for Claude's directory structure
         # Claude Code converts absolute paths to directory names like:
         # /Users/name/project -> -Users-name-project
-        norm_path = str(cwd).replace('/', '-').replace('_', '-')
+        norm_path = str(project_path).replace('/', '-').replace('_', '-')
 
         claude_projects = Path.home() / '.claude' / 'projects' / norm_path
 
@@ -895,6 +906,8 @@ def import_sessions(files, execute, interactive, since, force):
         else:
             error(f"No JSONL files found for current project")
             click.echo(f"Expected: {claude_projects}")
+            if claude_root:
+                click.echo(f"(Using .claude/ location: {claude_root})")
             return
     else:
         # Expand globs and collect files
