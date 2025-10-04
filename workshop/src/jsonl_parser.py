@@ -373,13 +373,19 @@ class JSONLParser:
         if msg_type not in ['user', 'assistant']:
             return entries
 
+        timestamp = message.get('timestamp', datetime.now().isoformat())
+        uuid = message.get('uuid', '')
+
+        # IMPORTANT: Extract tool errors FIRST (before content check)
+        # Tool error messages may not have normal content
+        if msg_type == 'user' and 'tool_use_id' in message.get('message', {}).get('content', [{}])[0]:
+            tool_errors = self._extract_tool_errors(message, timestamp, uuid)
+            entries.extend(tool_errors)
+
         # Get message content
         content = self._get_message_content(message)
         if not content:
             return entries
-
-        timestamp = message.get('timestamp', datetime.now().isoformat())
-        uuid = message.get('uuid', '')
 
         # NEW: Extract compaction summaries (user messages only - these are system-generated)
         if msg_type == 'user':
@@ -418,11 +424,6 @@ class JSONLParser:
         if msg_type == 'user':
             preferences = self._extract_preferences(content, timestamp, uuid)
             entries.extend(preferences)
-
-        # EXISTING: Extract tool errors
-        if msg_type == 'user' and 'tool_use_id' in message.get('message', {}).get('content', [{}])[0]:
-            tool_errors = self._extract_tool_errors(message, timestamp, uuid)
-            entries.extend(tool_errors)
 
         return entries
 

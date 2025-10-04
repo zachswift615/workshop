@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "claude-workshop"
-version = "0.3.3"
+version = "0.3.4"
 description = "Persistent context and memory tool for Claude Code sessions"
 readme = "README.md"
 license = {text = "MIT"}
@@ -72,4 +72,14 @@ src = [
     "claude_templates/commands/*",
     "web/templates/*",
     "web/static/*"
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "setup.py",
+    "src/__init__.py",
+    "src/web/*",
+    "src/migrate.py",
+    "src/export.py",
 ]
