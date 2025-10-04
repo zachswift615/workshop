@@ -664,35 +664,41 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 - Run `workshop context` to load existing project context
 - If Workshop is not installed, continue normally
 
-**Use Workshop throughout sessions to:**
-- Record decisions: `workshop decision "<text>" -r "<reasoning>"`
-- Document gotchas: `workshop gotcha "<text>" -t tag1 -t tag2`
-- Add notes: `workshop note "<text>"`
-- Track preferences: `workshop preference "<text>" --category code_style`
-- Manage goals: `workshop goal add "<text>"`, `workshop goal done "<text>"`, `workshop goal list`
-- Manage next steps: `workshop next add "<text>"`, `workshop next done "<text>"`
+**Record information throughout sessions:**
+- `workshop decision "<text>" -r "<reasoning>"` - Record decisions with why
+- `workshop gotcha "<text>"` - Document gotchas and constraints
+- `workshop note "<text>"` - Add general notes
+- `workshop preference "<text>" --category <category>` - Save user preferences
+- `workshop antipattern "<text>"` - Record patterns to avoid
 
-**Query context when needed:**
+**Manage goals and next steps:**
+- `workshop goal add "<text>"` - Add a new goal
+- `workshop goal done "<text>"` - Mark goal as completed
+- `workshop goal list` - List active goals
+- `workshop next add "<text>"` - Add a next step/TODO
+- `workshop next done "<text>"` - Mark next step as completed
+- Clean up: `workshop goal clean`, `workshop next clean`
+
+**Query and search:**
+- `workshop why "<query>"` - Smart search answering "why did we do X?"
+- `workshop search "<query>"` - Full-text search across all entries
 - `workshop context` - Current session summary
-- `workshop search "<query>"` - Find relevant entries
 - `workshop recent` - Recent activity
-- `workshop summary` - Activity overview
 
-**Important:** Workshop helps maintain continuity across sessions. Document:
-- Architectural decisions with reasoning
-- Failed approaches and why they didn't work
-- User preferences and coding style
-- Gotchas and constraints
-- Current goals and next steps
+**Clean up entries:**
+- `workshop delete last` - Delete the most recent entry (if you made a mistake)
+- `workshop clean` - Interactively delete entries (shows each, asks y/n)
+- `workshop clean --type <type>` - Clean only specific type
+- `workshop clear "30 days ago"` - Bulk delete old entries
 
-**Managing goals and next steps:**
-- Add new goals at the start of work: `workshop goal add "<what you're building>"`
-- Mark goals complete when done: `workshop goal done "<partial text match>"`
-- Add next steps as you plan: `workshop next add "<specific task>"`
-- Mark next steps complete as you finish: `workshop next done "<partial text match>"`
-- This keeps your context clean and prevents stale goals from appearing in exports
+**Important workflow:**
+- Add new goals at session start: `workshop goal add "<what you're building>"`
+- Mark goals/steps complete as you finish them to keep context clean
+- Record decisions with reasoning as you make architectural choices
+- Document gotchas and failed approaches as you discover them
+- If you make a mistake, use `workshop delete last` to remove it
 
-**Note:** Only use Workshop if it's installed in the project. Check with `command -v workshop` or try running a workshop command."""
+**Note:** Only use Workshop if it's installed. Check with `command -v workshop` or try running a command."""
 
         # Update custom instructions, replacing Workshop section if it exists
         existing_instructions = settings.get('customInstructions', '')
