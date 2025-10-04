@@ -326,10 +326,11 @@ class WorkshopStorageSQLite:
                 fts_query = " AND ".join(quoted_terms)
 
             sql = """
-                SELECT e.* FROM entries e
+                SELECT e.*, bm25(entries_fts) as relevance
+                FROM entries e
                 JOIN entries_fts fts ON e.rowid = fts.rowid
                 WHERE entries_fts MATCH ?
-                ORDER BY rank
+                ORDER BY bm25(entries_fts)
             """
 
             params = [fts_query]
@@ -465,15 +466,36 @@ class WorkshopStorageSQLite:
             if entry.get("reasoning"):
                 score += 50
 
-            # Keyword matches
+            # Keyword matches - count occurrences for better ranking
             content_lower = entry.get("content", "").lower()
             reasoning_lower = (entry.get("reasoning") or "").lower()
 
             for keyword in keywords:
-                if keyword in content_lower:
-                    score += 10
-                if keyword in reasoning_lower:
+                # Count occurrences, not just presence
+                content_count = content_lower.count(keyword)
+                reasoning_count = reasoning_lower.count(keyword)
+
+                score += content_count * 10
+                score += reasoning_count * 15
+
+            # Boost longer, more complete reasoning
+            if entry.get("reasoning"):
+                reasoning_length = len(entry.get("reasoning", ""))
+                if reasoning_length > 200:
+                    score += 30
+                elif reasoning_length > 100:
                     score += 15
+
+            # Boost entries with tags (shows more curation)
+            if entry.get("tags"):
+                score += len(entry.get("tags", [])) * 5
+
+            # Boost entries that explain "why" (contain reasoning indicators)
+            why_indicators = ["because", "provides", "enables", "allows", "better",
+                            "faster", "easier", "simpler", "instead of", "rather than"]
+            reasoning_text = (entry.get("reasoning") or "").lower()
+            why_indicator_count = sum(1 for indicator in why_indicators if indicator in reasoning_text)
+            score += why_indicator_count * 10
 
             # Recency bonus
             try:

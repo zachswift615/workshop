@@ -5,6 +5,19 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2025-01-04
+
+### Improved
+- **Search ranking**: Dramatically improved `workshop why` command to surface most relevant answers first
+  - Keyword occurrence counting (not just presence)
+  - Reasoning length boost for more complete explanations
+  - Tag count boost for curated entries
+  - "Why" indicator boost for entries with "provides", "enables", "better", etc.
+  - BM25 ranking for better FTS5 relevance in regular search
+
+### Fixed
+- Fixed AttributeError when entries have null reasoning field in why_search
+
 ## [1.0.3] - 2025-01-04
 
 ### Fixed
