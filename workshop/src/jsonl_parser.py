@@ -56,6 +56,14 @@ class JSONLParser:
         r'failed because',
         r'error:',
         r'doesn\'t work',
+        # Enhanced patterns from analysis
+        r'caveat:',
+        r'won\'t work (?:if|when)',
+        r'only works (?:if|when)',
+        r'must (?:be|have)',
+        r'requires? that',
+        r'make sure to',
+        r'don\'t forget to',
     ]
 
     PREFERENCE_KEYWORDS = [
@@ -178,6 +186,100 @@ class JSONLParser:
                 return msg['summary']
         return ""
 
+    def _extract_summary_sections(self, content: str, timestamp: str, uuid: str) -> List[ExtractedEntry]:
+        """Extract ## Summary sections from assistant messages"""
+        entries = []
+
+        # Find summary sections
+        summary_pattern = re.compile(
+            r'##+ Summary.*?(?=\n##|$)',
+            re.IGNORECASE | re.DOTALL
+        )
+
+        for match in summary_pattern.finditer(content):
+            summary_text = match.group(0).strip()
+
+            # Skip if too short (likely not a real summary)
+            if len(summary_text) < 100:
+                continue
+
+            entries.append(ExtractedEntry(
+                type='note',
+                content=summary_text,
+                confidence=0.9,  # High confidence - explicitly marked
+                timestamp=timestamp,
+                source_uuid=uuid
+            ))
+
+        return entries
+
+    def _extract_problem_solutions(self, content: str, timestamp: str, uuid: str) -> List[ExtractedEntry]:
+        """Extract problem/solution pairs and root causes"""
+        entries = []
+
+        # Pattern for "Fixed!" sections
+        fixed_pattern = re.compile(
+            r'##+ (?:Fixed|Resolved|Complete|Done)!?.*?(?=\n##|$)',
+            re.IGNORECASE | re.DOTALL
+        )
+
+        for match in fixed_pattern.finditer(content):
+            fixed_text = match.group(0).strip()
+            if len(fixed_text) > 50:  # Skip very short ones
+                entries.append(ExtractedEntry(
+                    type='note',
+                    content=fixed_text,
+                    confidence=0.9,
+                    timestamp=timestamp,
+                    source_uuid=uuid
+                ))
+
+        # Pattern for root cause explanations
+        root_cause_pattern = re.compile(
+            r'[Tt]he (?:problem|issue|bug) was that .+?\.',
+            re.DOTALL
+        )
+
+        for match in root_cause_pattern.finditer(content):
+            sentence = match.group(0).strip()
+            if len(sentence) > 30 and len(sentence) < 500:
+                entries.append(ExtractedEntry(
+                    type='gotcha',
+                    content=sentence,
+                    confidence=0.85,
+                    timestamp=timestamp,
+                    source_uuid=uuid
+                ))
+
+        return entries
+
+    def _extract_discoveries(self, content: str, timestamp: str, uuid: str) -> List[ExtractedEntry]:
+        """Extract technical discoveries and realizations"""
+        entries = []
+
+        discovery_patterns = [
+            r'[Dd]iscovered that .+?\.',
+            r'[Ff]ound that .+?\.',
+            r'[Rr]ealized that .+?\.',
+            r'[Tt]urns out .+?\.',
+            r'[Ii]mportant to note that .+?\.',
+        ]
+
+        pattern = re.compile('|'.join(discovery_patterns))
+
+        for match in pattern.finditer(content):
+            sentence = match.group(0).strip()
+            if len(sentence) > 20 and len(sentence) < 300 and not self._is_low_quality_sentence(sentence):
+                entries.append(ExtractedEntry(
+                    type='gotcha',
+                    content=sentence,
+                    confidence=0.8,
+                    timestamp=timestamp,
+                    source_uuid=uuid
+                ))
+
+        return entries
+
     def _extract_from_message(self, message: Dict) -> List[ExtractedEntry]:
         """
         Extract workshop entries from a single message.
@@ -203,20 +305,35 @@ class JSONLParser:
         timestamp = message.get('timestamp', datetime.now().isoformat())
         uuid = message.get('uuid', '')
 
-        # Extract decisions
+        # NEW: Extract summary sections (assistant only)
+        if msg_type == 'assistant':
+            summaries = self._extract_summary_sections(content, timestamp, uuid)
+            entries.extend(summaries)
+
+        # NEW: Extract problem/solution pairs (assistant only)
+        if msg_type == 'assistant':
+            solutions = self._extract_problem_solutions(content, timestamp, uuid)
+            entries.extend(solutions)
+
+        # NEW: Extract discoveries (assistant only)
+        if msg_type == 'assistant':
+            discoveries = self._extract_discoveries(content, timestamp, uuid)
+            entries.extend(discoveries)
+
+        # EXISTING: Extract decisions
         decisions = self._extract_decisions(content, timestamp, uuid)
         entries.extend(decisions)
 
-        # Extract gotchas
+        # EXISTING: Extract gotchas
         gotchas = self._extract_gotchas(content, timestamp, uuid)
         entries.extend(gotchas)
 
-        # Extract preferences (from user messages only)
+        # EXISTING: Extract preferences (from user messages only)
         if msg_type == 'user':
             preferences = self._extract_preferences(content, timestamp, uuid)
             entries.extend(preferences)
 
-        # Extract tool errors
+        # EXISTING: Extract tool errors
         if msg_type == 'user' and 'tool_use_id' in message.get('message', {}).get('content', [{}])[0]:
             tool_errors = self._extract_tool_errors(message, timestamp, uuid)
             entries.extend(tool_errors)
