@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Workshop Admin{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p class="mt-2 text-sm text-gray-600">{{ workspace_path }}</p>
+        <p class="text-xs text-gray-500">Database: {{ db_path }}</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <dt class="text-sm font-medium text-gray-500 truncate">Total Entries</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-gray-900">{{ stats.total }}</dd>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <dt class="text-sm font-medium text-gray-500 truncate">Notes</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-blue-600">{{ stats.notes }}</dd>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <dt class="text-sm font-medium text-gray-500 truncate">Gotchas</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-yellow-600">{{ stats.gotchas }}</dd>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <dt class="text-sm font-medium text-gray-500 truncate">Decisions</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-green-600">{{ stats.decisions }}</dd>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <dt class="text-sm font-medium text-gray-500 truncate">Preferences</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-purple-600">{{ stats.preferences }}</dd>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Entries -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Recent Entries</h2>
+            <div class="space-y-4">
+                {% for entry in entries %}
+                <div class="border-l-4 pl-4 py-2 {% if entry.type == 'note' %}border-blue-500{% elif entry.type == 'gotcha' %}border-yellow-500{% elif entry.type == 'decision' %}border-green-500{% else %}border-purple-500{% endif %}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if entry.type == 'note' %}bg-blue-100 text-blue-800{% elif entry.type == 'gotcha' %}bg-yellow-100 text-yellow-800{% elif entry.type == 'decision' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                                    {{ entry.type }}
+                                </span>
+                                <span class="text-xs text-gray-500">{{ entry.timestamp|timeago }}</span>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-900 line-clamp-2">{{ entry.content }}</p>
+                            {% if entry.metadata %}
+                            <p class="mt-1 text-xs text-gray-500 italic">{{ entry.metadata[:100] }}{% if entry.metadata|length > 100 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                        <div class="ml-4 flex-shrink-0 flex gap-2">
+                            <a href="/entries/{{ entry.id }}" class="text-sm text-blue-600 hover:text-blue-900">View</a>
+                            <a href="/entries/{{ entry.id }}/edit" class="text-sm text-gray-600 hover:text-gray-900">Edit</a>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-8">No entries yet</p>
+                {% endfor %}
+            </div>
+            {% if entries|length == 20 %}
+            <div class="mt-4 text-center">
+                <a href="/entries" class="text-sm text-blue-600 hover:text-blue-900">View all entries →</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

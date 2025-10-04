@@ -1,13 +1,17 @@
 #!/bin/bash
 
 # Workshop SessionStart Hook
-# This displays workshop context at the beginning of each Claude Code session
+# This imports new conversation history and displays workshop context at the beginning of each session
 
 # Check if workshop is available
 if ! command -v workshop &> /dev/null; then
     echo "Workshop CLI not found. Install with: pip install -e ./workshop"
     exit 0
 fi
+
+# Auto-import new JSONL files (runs silently in background)
+# This captures compaction summaries and new conversation data automatically
+workshop import &>/dev/null &
 
 # Display workshop context as JSON for Claude to parse
 echo '{

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "claude-workshop"
-version = "0.2.6"
+version = "0.3.0"
 description = "Persistent context and memory tool for Claude Code sessions"
 readme = "README.md"
 license = {text = "MIT"}
@@ -46,8 +46,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
     "build>=0.10.0",
     "twine>=4.0.0",
+]
+web = [
+    "flask>=2.0.0",
 ]
 
 [project.urls]
@@ -59,11 +63,13 @@ Issues = "https://github.com/zachswift615/workshop/issues"
 workshop = "src.cli:main"
 
 [tool.setuptools]
-packages = ["src"]
+packages = ["src", "src.web"]
 
 [tool.setuptools.package-data]
 src = [
     "schema.sql",
     "claude_templates/*",
-    "claude_templates/commands/*"
+    "claude_templates/commands/*",
+    "web/templates/*",
+    "web/static/*"
 ]

@@ -1,5 +1,11 @@
 # Workshop
 
+[![PyPI version](https://badge.fury.io/py/claude-workshop.svg)](https://pypi.org/project/claude-workshop/)
+[![Tests](https://github.com/zachswift615/workshop/actions/workflows/test.yml/badge.svg)](https://github.com/zachswift615/workshop/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/zachswift615/workshop/branch/main/graph/badge.svg)](https://codecov.io/gh/zachswift615/workshop)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Give Claude long-term memory for your projects.**
 
 Workshop is a persistent memory tool that lets Claude Code remember your decisions, preferences, and project context across sessions. Install it once, and Claude automatically maintains institutional knowledge about your codebase - no manual note-taking required.
@@ -102,12 +108,93 @@ workshop export -o context.md # Save to file
 
 Copy the output and paste it into a web chat to give Claude continuity between Code and web sessions!
 
+### Web Admin Interface
+
+Workshop includes a web-based admin interface for browsing and managing your knowledge base:
+
+```bash
+# Start the web server (requires Flask)
+pip install "claude-workshop[web]"
+workshop web
+
+# Custom port
+workshop web --port 8080
+```
+
+Then open http://localhost:5000 in your browser.
+
+**Features:**
+- **Dashboard**: Stats and recent entries
+- **Browse**: Searchable, filterable list of all entries
+- **View/Edit**: Click any entry to view details or make edits
+- **Delete**: Remove outdated or incorrect entries
+- **Settings**: View and edit your `~/.workshop/config.json`
+
+The Settings page lets you:
+- View/edit configuration with syntax highlighting
+- Register new projects manually
+- Validate configuration and test paths
+- See auto-detected vs manually configured projects
+
 ## Data Storage
 
 Workshop uses SQLite for fast, efficient storage:
-- **Project-specific**: `./.workshop/workshop.db` in your project root
-- **Global**: `~/.workshop/workshop.db` for cross-project context
-- **Custom location**: Set `WORKSHOP_DIR` environment variable
+
+### Database Locations
+
+Workshop automatically finds the right database location using this priority order:
+
+1. **Auto-detected** (default): `.workshop/workshop.db` at your git root
+2. **Fallback**: `.workshop/workshop.db` in current directory
+3. **Custom**: Configure via `~/.workshop/config.json` (see Configuration below)
+
+### Claude Code Session Files (JSONL)
+
+Claude Code stores conversation transcripts that Workshop can import:
+
+**macOS & Linux:**
+```
+~/.claude/projects/<normalized-project-path>/*.jsonl
+```
+Example: `/Users/name/my-project` → `~/.claude/projects/-Users-name-my-project/*.jsonl`
+
+**Windows:**
+```
+%USERPROFILE%\.claude\projects\<normalized-project-path>\*.jsonl
+```
+Example: `C:\Users\name\my-project` → `%USERPROFILE%\.claude\projects\C-Users-name-my-project\*.jsonl`
+
+**Path Normalization:**
+- Forward slashes (`/`) become hyphens (`-`)
+- Underscores (`_`) become hyphens (`-`)
+- Drive letters are preserved on Windows
+
+### Configuration File
+
+Workshop supports a global config file at `~/.workshop/config.json`:
+
+```json
+{
+  "version": "1.0",
+  "default_mode": "per-project",
+  "projects": {
+    "/Users/name/my-project": {
+      "database": "/Users/name/my-project/.workshop/workshop.db",
+      "jsonl_path": "~/.claude/projects/-Users-name-my-project",
+      "auto_import": true
+    }
+  },
+  "global": {
+    "database": "~/.workshop/workshop.db",
+    "enabled": false
+  }
+}
+```
+
+The config file:
+- Auto-registers projects when you first use Workshop in them
+- Allows manual overrides for database and JSONL locations
+- Can be edited via the Web UI (see Web Admin Interface below)
 
 ### Migration from JSON
 

@@ -1,0 +1,292 @@
+"""
+Workshop Web UI - Flask Application
+Provides a web interface for browsing, editing, and managing Workshop entries.
+"""
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from pathlib import Path
+from datetime import datetime
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from src.storage_sqlite import WorkshopStorageSQLite
+from src.config import WorkshopConfig
+
+app = Flask(__name__)
+app.secret_key = 'workshop-dev-key-change-in-production'
+
+def get_store():
+    """Get Workshop storage instance"""
+    return WorkshopStorageSQLite()
+
+def format_timestamp(timestamp_str):
+    """Format timestamp as relative time"""
+    try:
+        dt = datetime.fromisoformat(timestamp_str)
+        now = datetime.now()
+        diff = now - dt
+
+        if diff.days > 365:
+            years = diff.days // 365
+            return f"{years} year{'s' if years != 1 else ''} ago"
+        elif diff.days > 30:
+            months = diff.days // 30
+            return f"{months} month{'s' if months != 1 else ''} ago"
+        elif diff.days > 0:
+            return f"{diff.days} day{'s' if diff.days != 1 else ''} ago"
+        elif diff.seconds > 3600:
+            hours = diff.seconds // 3600
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        elif diff.seconds > 60:
+            mins = diff.seconds // 60
+            return f"{mins} minute{'s' if mins != 1 else ''} ago"
+        else:
+            return "just now"
+    except:
+        return timestamp_str
+
+app.jinja_env.filters['timeago'] = format_timestamp
+
+@app.route('/')
+def dashboard():
+    """Main dashboard with stats and recent entries"""
+    store = get_store()
+
+    # Get stats
+    all_entries = store.get_entries(limit=10000)  # Get more for stats
+    stats = {
+        'total': len(all_entries),
+        'notes': len([e for e in all_entries if e['type'] == 'note']),
+        'gotchas': len([e for e in all_entries if e['type'] == 'gotcha']),
+        'decisions': len([e for e in all_entries if e['type'] == 'decision']),
+        'preferences': len([e for e in all_entries if e['type'] == 'preference']),
+    }
+
+    # Get recent entries
+    recent_entries = store.get_entries(limit=20)
+
+    # Get workspace info
+    workspace_path = store.workspace_dir
+    db_path = store.db_file
+
+    return render_template('dashboard.html',
+                         stats=stats,
+                         entries=recent_entries,
+                         workspace_path=workspace_path,
+                         db_path=db_path)
+
+@app.route('/entries')
+def list_entries():
+    """Paginated list of entries with filters"""
+    store = get_store()
+
+    # Get filters from query params
+    entry_type = request.args.get('type', '')
+    search_query = request.args.get('q', '')
+    page = int(request.args.get('page', 1))
+    per_page = 50
+
+    # Get entries
+    if search_query:
+        entries = store.search(search_query, limit=1000)
+    else:
+        entries = store.get_entries(limit=1000)
+
+    # Filter by type
+    if entry_type:
+        entries = [e for e in entries if e['type'] == entry_type]
+
+    # Pagination
+    total = len(entries)
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_entries = entries[start:end]
+
+    total_pages = (total + per_page - 1) // per_page
+
+    return render_template('entries.html',
+                         entries=page_entries,
+                         entry_type=entry_type,
+                         search_query=search_query,
+                         page=page,
+                         total_pages=total_pages,
+                         total=total)
+
+@app.route('/entries/<entry_id>')
+def view_entry(entry_id):
+    """View single entry"""
+    store = get_store()
+    entry = store.get_entry_by_id(entry_id)
+
+    if not entry:
+        flash('Entry not found', 'error')
+        return redirect(url_for('dashboard'))
+
+    return render_template('view.html', entry=entry)
+
+@app.route('/entries/<entry_id>/edit', methods=['GET', 'POST'])
+def edit_entry(entry_id):
+    """Edit entry"""
+    store = get_store()
+
+    if request.method == 'POST':
+        # Update entry
+        content = request.form.get('content', '')
+        reasoning = request.form.get('reasoning', '')
+        entry_type = request.form.get('type', 'note')
+
+        # Update in database
+        conn = store._get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE entries
+            SET content = ?, metadata = ?, type = ?
+            WHERE id = ?
+        ''', (content, reasoning, entry_type, entry_id))
+        conn.commit()
+        conn.close()
+
+        flash('Entry updated successfully', 'success')
+        return redirect(url_for('view_entry', entry_id=entry_id))
+
+    # GET request - show form
+    entry = store.get_entry_by_id(entry_id)
+    if not entry:
+        flash('Entry not found', 'error')
+        return redirect(url_for('dashboard'))
+
+    return render_template('edit.html', entry=entry)
+
+@app.route('/entries/<entry_id>/delete', methods=['POST'])
+def delete_entry(entry_id):
+    """Delete entry"""
+    store = get_store()
+
+    conn = store._get_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM entries WHERE id = ?', (entry_id,))
+    conn.commit()
+    conn.close()
+
+    flash('Entry deleted successfully', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/entries/new', methods=['GET', 'POST'])
+def new_entry():
+    """Create new entry"""
+    store = get_store()
+
+    if request.method == 'POST':
+        content = request.form.get('content', '')
+        reasoning = request.form.get('reasoning', '')
+        entry_type = request.form.get('type', 'note')
+
+        if content:
+            store.add_entry(
+                entry_type=entry_type,
+                content=content,
+                reasoning=reasoning if reasoning else None
+            )
+            flash('Entry created successfully', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Content is required', 'error')
+
+    return render_template('new.html')
+
+@app.route('/settings')
+def settings():
+    """Settings page"""
+    config = WorkshopConfig()
+
+    # Get config as pretty JSON
+    import json
+    config_json = json.dumps(config.get_raw_config(), indent=2)
+
+    # Get projects list
+    projects = config.list_projects()
+
+    return render_template('settings.html',
+                         config_json=config_json,
+                         projects=projects)
+
+@app.route('/api/config', methods=['GET'])
+def api_get_config():
+    """Get current configuration"""
+    config = WorkshopConfig()
+    return jsonify(config.get_raw_config())
+
+@app.route('/api/config', methods=['POST'])
+def api_save_config():
+    """Save configuration"""
+    try:
+        new_config = request.get_json()
+
+        config = WorkshopConfig()
+        config.update_from_dict(new_config)
+
+        return jsonify({'success': True, 'message': 'Configuration saved'})
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to save: {str(e)}'}), 500
+
+@app.route('/api/config/validate', methods=['POST'])
+def api_validate_config():
+    """Validate configuration"""
+    try:
+        test_config = request.get_json()
+
+        # Create temp config to test validation
+        config = WorkshopConfig()
+        config._config = test_config
+
+        result = config.validate()
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'valid': False,
+            'errors': [f'Validation failed: {str(e)}'],
+            'warnings': []
+        })
+
+@app.route('/api/config/reset', methods=['POST'])
+def api_reset_config():
+    """Reset to default configuration"""
+    try:
+        config = WorkshopConfig()
+        config._config = config._create_default_config()
+
+        return jsonify({'success': True, 'message': 'Configuration reset'})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/stats')
+def api_stats():
+    """API endpoint for stats"""
+    store = get_store()
+    all_entries = store.get_entries(limit=10000)
+
+    stats = {
+        'total': len(all_entries),
+        'by_type': {},
+        'by_date': {}
+    }
+
+    for entry in all_entries:
+        # Count by type
+        entry_type = entry['type']
+        stats['by_type'][entry_type] = stats['by_type'].get(entry_type, 0) + 1
+
+    return jsonify(stats)
+
+def run(host='127.0.0.1', port=5000, debug=True):
+    """Run the Flask app"""
+    app.run(host=host, port=port, debug=debug)
+
+if __name__ == '__main__':
+    run()

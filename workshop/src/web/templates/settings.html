@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Workshop Admin{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-gray-900">Settings</h1>
+        <div class="flex gap-2">
+            <button onclick="validateConfig()" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                🔍 Validate
+            </button>
+            <button onclick="saveConfig()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                💾 Save
+            </button>
+        </div>
+    </div>
+
+    <!-- Validation Results -->
+    <div id="validation-results" class="hidden"></div>
+
+    <!-- Config Editor -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Configuration File</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Edit your Workshop configuration at <code class="bg-gray-100 px-2 py-1 rounded">~/.workshop/config.json</code>
+            </p>
+
+            <textarea
+                id="config-editor"
+                class="w-full h-96 font-mono text-sm p-4 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                spellcheck="false"
+            >{{ config_json }}</textarea>
+
+            <div class="mt-4 flex gap-2">
+                <button onclick="formatConfig()" class="text-sm text-blue-600 hover:text-blue-800">
+                    ✨ Format JSON
+                </button>
+                <button onclick="resetConfig()" class="text-sm text-red-600 hover:text-red-800">
+                    ↻ Reset to Defaults
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registered Projects -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Registered Projects</h2>
+
+            {% if projects %}
+                <div class="space-y-4">
+                    {% for project_path, project_config in projects.items() %}
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h3 class="font-medium text-gray-900">{{ project_path }}</h3>
+                                <dl class="mt-2 text-sm space-y-1">
+                                    <div class="flex">
+                                        <dt class="text-gray-500 w-32">Database:</dt>
+                                        <dd class="text-gray-900 font-mono text-xs">{{ project_config.database }}</dd>
+                                    </div>
+                                    <div class="flex">
+                                        <dt class="text-gray-500 w-32">JSONL Path:</dt>
+                                        <dd class="text-gray-900 font-mono text-xs">{{ project_config.jsonl_path }}</dd>
+                                    </div>
+                                    <div class="flex">
+                                        <dt class="text-gray-500 w-32">Auto Import:</dt>
+                                        <dd class="text-gray-900">{{ 'Yes' if project_config.get('auto_import', True) else 'No' }}</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                            <button onclick="removeProject('{{ project_path }}')" class="text-red-600 hover:text-red-800 text-sm">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500">No projects registered yet. Projects are auto-registered when you first use Workshop in them.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="bg-blue-50 rounded-lg p-6">
+        <h3 class="text-lg font-medium text-blue-900 mb-2">📚 Configuration Help</h3>
+        <div class="text-sm text-blue-800 space-y-2">
+            <p><strong>Projects:</strong> Automatically registered when you run Workshop commands. Each project can have custom database and JSONL paths.</p>
+            <p><strong>Path Normalization:</strong> Claude Code normalizes project paths: <code>/Users/name/project</code> → <code>-Users-name-project</code></p>
+            <p><strong>Auto Import:</strong> When enabled, new JSONL files are automatically imported after each session.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function getConfig() {
+    try {
+        return JSON.parse(document.getElementById('config-editor').value);
+    } catch (e) {
+        return null;
+    }
+}
+
+function formatConfig() {
+    const config = getConfig();
+    if (config) {
+        document.getElementById('config-editor').value = JSON.stringify(config, null, 2);
+        showMessage('Config formatted', 'success');
+    } else {
+        showMessage('Invalid JSON', 'error');
+    }
+}
+
+async function saveConfig() {
+    const config = getConfig();
+    if (!config) {
+        showMessage('Invalid JSON - cannot save', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showMessage('Configuration saved successfully', 'success');
+        } else {
+            showMessage('Error: ' + result.error, 'error');
+        }
+    } catch (e) {
+        showMessage('Failed to save: ' + e.message, 'error');
+    }
+}
+
+async function validateConfig() {
+    const config = getConfig();
+    if (!config) {
+        showMessage('Invalid JSON - cannot validate', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/config/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+
+        const result = await response.json();
+        displayValidation(result);
+    } catch (e) {
+        showMessage('Failed to validate: ' + e.message, 'error');
+    }
+}
+
+function displayValidation(result) {
+    const container = document.getElementById('validation-results');
+    container.classList.remove('hidden');
+
+    let html = '<div class="bg-white shadow rounded-lg p-4">';
+
+    if (result.valid) {
+        html += '<p class="text-green-600 font-medium">✓ Configuration is valid</p>';
+    } else {
+        html += '<p class="text-red-600 font-medium">✗ Configuration has errors</p>';
+    }
+
+    if (result.errors && result.errors.length > 0) {
+        html += '<div class="mt-2"><p class="font-medium text-red-800">Errors:</p><ul class="list-disc list-inside text-sm text-red-700">';
+        result.errors.forEach(err => html += `<li>${err}</li>`);
+        html += '</ul></div>';
+    }
+
+    if (result.warnings && result.warnings.length > 0) {
+        html += '<div class="mt-2"><p class="font-medium text-yellow-800">Warnings:</p><ul class="list-disc list-inside text-sm text-yellow-700">';
+        result.warnings.forEach(warn => html += `<li>${warn}</li>`);
+        html += '</ul></div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+async function resetConfig() {
+    if (!confirm('Reset to default configuration? This will remove all custom project registrations.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/config/reset', {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            showMessage('Failed to reset configuration', 'error');
+        }
+    } catch (e) {
+        showMessage('Error: ' + e.message, 'error');
+    }
+}
+
+async function removeProject(projectPath) {
+    if (!confirm(`Remove project: ${projectPath}?`)) {
+        return;
+    }
+
+    const config = getConfig();
+    if (config && config.projects) {
+        delete config.projects[projectPath];
+        document.getElementById('config-editor').value = JSON.stringify(config, null, 2);
+        await saveConfig();
+        location.reload();
+    }
+}
+
+function showMessage(message, type) {
+    const container = document.getElementById('validation-results');
+    container.classList.remove('hidden');
+
+    const bgColor = type === 'success' ? 'bg-green-50' : type === 'error' ? 'bg-red-50' : 'bg-blue-50';
+    const textColor = type === 'success' ? 'text-green-800' : type === 'error' ? 'text-red-800' : 'text-blue-800';
+
+    container.innerHTML = `<div class="${bgColor} rounded-lg p-4"><p class="${textColor}">${message}</p></div>`;
+
+    setTimeout(() => {
+        container.classList.add('hidden');
+    }, 3000);
+}
+</script>
+{% endblock %}

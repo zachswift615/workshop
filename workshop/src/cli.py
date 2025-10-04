@@ -34,6 +34,7 @@ def get_storage() -> WorkshopStorageSQLite:
 
 @click.group()
 @click.option('--workspace', type=click.Path(), help='Custom workspace directory')
+@click.version_option(version='0.3.0', prog_name='Workshop')
 def main(workspace):
     """
     Workshop - Persistent context tool for Claude Code.
@@ -571,7 +572,8 @@ def clear(before_date, entry_type):
 def info():
     """Show workspace information"""
     store = get_storage()
-    click.echo(f"\n📁 Workshop workspace: {store.workspace_dir}")
+    click.echo(f"\n🔧 Workshop version: 0.3.0")
+    click.echo(f"📁 Workshop workspace: {store.workspace_dir}")
     click.echo(f"📄 Database file: {store.db_file}")
 
     # Count entries using SQLite
@@ -905,9 +907,29 @@ def import_sessions(files, execute, interactive, since, force):
             jsonl_files = list(claude_projects.glob('*.jsonl'))
         else:
             error(f"No JSONL files found for current project")
-            click.echo(f"Expected: {claude_projects}")
+            click.echo(f"\n💡 Expected location: {claude_projects}")
             if claude_root:
-                click.echo(f"(Using .claude/ location: {claude_root})")
+                click.echo(f"   (Using .claude/ location: {claude_root})")
+
+            # Platform-specific help
+            import platform
+            system = platform.system()
+
+            click.echo(f"\n📚 Claude Code JSONL locations by platform:")
+            if system == "Darwin" or system == "Linux":
+                click.echo(f"   • macOS/Linux: ~/.claude/projects/<normalized-project-path>/")
+                click.echo(f"   • Project paths are normalized: /Users/name/project → -Users-name-project")
+            elif system == "Windows":
+                click.echo(f"   • Windows: %USERPROFILE%\\.claude\\projects\\<normalized-project-path>\\")
+                click.echo(f"   • Project paths are normalized: C:\\Users\\name\\project → C-Users-name-project")
+            else:
+                click.echo(f"   • Check ~/.claude/projects/ for session files")
+
+            click.echo(f"\n🔍 Troubleshooting:")
+            click.echo(f"   1. Verify Claude Code has been run in this project")
+            click.echo(f"   2. Check available sessions: ls ~/.claude/projects/")
+            click.echo(f"   3. Manual import: workshop import <path-to-jsonl-file>")
+
             return
     else:
         # Expand globs and collect files
@@ -1041,7 +1063,8 @@ def import_sessions(files, execute, interactive, since, force):
             store.add_entry(
                 entry_type=entry.type,
                 content=entry.content,
-                reasoning=entry.reasoning
+                reasoning=entry.reasoning,
+                timestamp=entry.timestamp
             )
             imported_count += 1
 
@@ -1090,6 +1113,29 @@ def import_status():
     total_entries = sum(r['entries_created'] for r in history)
 
     click.echo(f"Total: {total_entries} entries from {total_files} files")
+
+
+@main.command()
+@click.option('--host', default='127.0.0.1', help='Host to bind to (default: 127.0.0.1)')
+@click.option('--port', '-p', default=5000, type=int, help='Port to run on (default: 5000)')
+@click.option('--debug/--no-debug', default=False, help='Run in debug mode')
+def web(host, port, debug):
+    """Launch web UI for browsing and editing entries"""
+    try:
+        from .web.app import run
+    except ImportError:
+        display_error("Flask is not installed. Install with: pip install flask")
+        return
+
+    store = get_storage()
+    workspace_path = store.workspace_dir
+
+    click.echo(f"\n🌐 Starting Workshop Web UI...")
+    click.echo(f"   Workspace: {workspace_path}")
+    click.echo(f"   URL: http://{host}:{port}")
+    click.echo(f"\nPress Ctrl+C to stop\n")
+
+    run(host=host, port=port, debug=debug)
 
 
 def _format_time_ago(dt: datetime) -> str:

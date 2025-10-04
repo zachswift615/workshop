@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Entries - Workshop Admin{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with filters -->
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">All Entries</h1>
+        <p class="mt-1 text-sm text-gray-600">{{ total }} total entries</p>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white shadow rounded-lg p-4">
+        <form method="get" class="space-y-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="search" class="block text-sm font-medium text-gray-700">Search</label>
+                    <input type="text" name="q" id="search" value="{{ search_query }}"
+                           placeholder="Search entries..."
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border">
+                </div>
+                <div>
+                    <label for="type" class="block text-sm font-medium text-gray-700">Type</label>
+                    <select name="type" id="type"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border">
+                        <option value="">All types</option>
+                        <option value="note" {% if entry_type == 'note' %}selected{% endif %}>Note</option>
+                        <option value="gotcha" {% if entry_type == 'gotcha' %}selected{% endif %}>Gotcha</option>
+                        <option value="decision" {% if entry_type == 'decision' %}selected{% endif %}>Decision</option>
+                        <option value="preference" {% if entry_type == 'preference' %}selected{% endif %}>Preference</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Apply Filters
+                </button>
+                <a href="/entries" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Entries List -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <div class="space-y-4">
+                {% for entry in entries %}
+                <div class="border-l-4 pl-4 py-2 {% if entry.type == 'note' %}border-blue-500{% elif entry.type == 'gotcha' %}border-yellow-500{% elif entry.type == 'decision' %}border-green-500{% else %}border-purple-500{% endif %}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if entry.type == 'note' %}bg-blue-100 text-blue-800{% elif entry.type == 'gotcha' %}bg-yellow-100 text-yellow-800{% elif entry.type == 'decision' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                                    {{ entry.type }}
+                                </span>
+                                <span class="text-xs text-gray-500">{{ entry.timestamp|timeago }}</span>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-900">{{ entry.content[:200] }}{% if entry.content|length > 200 %}...{% endif %}</p>
+                            {% if entry.metadata %}
+                            <p class="mt-1 text-xs text-gray-500 italic">{{ entry.metadata[:100] }}{% if entry.metadata|length > 100 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                        <div class="ml-4 flex-shrink-0 flex gap-2">
+                            <a href="/entries/{{ entry.id }}" class="text-sm text-blue-600 hover:text-blue-900">View</a>
+                            <a href="/entries/{{ entry.id }}/edit" class="text-sm text-gray-600 hover:text-gray-900">Edit</a>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-8">No entries found</p>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <div class="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if page > 1 %}
+                    <a href="?page={{ page - 1 }}{% if entry_type %}&type={{ entry_type }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% endif %}
+                    {% if page < total_pages %}
+                    <a href="?page={{ page + 1 }}{% if entry_type %}&type={{ entry_type }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Page <span class="font-medium">{{ page }}</span> of <span class="font-medium">{{ total_pages }}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                            {% if page > 1 %}
+                            <a href="?page={{ page - 1 }}{% if entry_type %}&type={{ entry_type }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                Previous
+                            </a>
+                            {% endif %}
+                            {% if page < total_pages %}
+                            <a href="?page={{ page + 1 }}{% if entry_type %}&type={{ entry_type }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                Next
+                            </a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

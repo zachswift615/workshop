@@ -113,11 +113,19 @@ class JSONLParser:
         # Extract session summary
         session_summary = self._extract_session_summary(messages)
 
-        # Extract entries from messages
+        # Extract entries from messages with deduplication
         entries = []
+        seen_content_hashes = set()
+
         for msg in messages:
             msg_entries = self._extract_from_message(msg)
-            entries.extend(msg_entries)
+
+            # Deduplicate by content hash
+            for entry in msg_entries:
+                content_hash = hashlib.md5(entry.content.encode('utf-8')).hexdigest()
+                if content_hash not in seen_content_hashes:
+                    seen_content_hashes.add(content_hash)
+                    entries.append(entry)
 
         # Get last message info
         last_msg = messages[-1] if messages else {}
@@ -213,6 +221,51 @@ class JSONLParser:
 
         return entries
 
+    def _extract_completion_summaries(self, content: str, timestamp: str, uuid: str) -> List[ExtractedEntry]:
+        """Extract completion summaries with numbered lists"""
+        entries = []
+
+        # Pattern 1: "Perfect/Great/Done! I've:" followed by content
+        completion_pattern_1 = re.compile(
+            r'(?:Perfect|Great|Done|Excellent)!\s+I\'ve:\s*\n\n(?:.*?)(?=\n\n\n|\n\n##|$)',
+            re.IGNORECASE | re.DOTALL
+        )
+
+        # Pattern 2: "X is now working! The issue was... The solution includes:"
+        completion_pattern_2 = re.compile(
+            r'(?:.*?)\s+is now working!\s+The issue was.*?The solution includes:\s*\n(?:.*?)(?=\n\n\n|\n\n##|$)',
+            re.IGNORECASE | re.DOTALL
+        )
+
+        # Pattern 3: "Perfect/Great! Now X will:" followed by numbered list
+        completion_pattern_3 = re.compile(
+            r'(?:Perfect|Great|Done|Excellent)!\s+Now\s+.*?:\s*\n(?:.*?)(?=\n\n\n|\n\n##|$)',
+            re.IGNORECASE | re.DOTALL
+        )
+
+        for pattern in [completion_pattern_1, completion_pattern_2, completion_pattern_3]:
+            for match in pattern.finditer(content):
+                completion_text = match.group(0).strip()
+
+                # Must contain at least 2 numbered items to be valid
+                numbered_items = re.findall(r'^\d+\.', completion_text, re.MULTILINE)
+                if len(numbered_items) < 2:
+                    continue
+
+                # Skip if too short
+                if len(completion_text) < 100:
+                    continue
+
+                entries.append(ExtractedEntry(
+                    type='note',
+                    content=completion_text,
+                    confidence=0.95,  # Very high confidence - clear completion summary
+                    timestamp=timestamp,
+                    source_uuid=uuid
+                ))
+
+        return entries
+
     def _extract_problem_solutions(self, content: str, timestamp: str, uuid: str) -> List[ExtractedEntry]:
         """Extract problem/solution pairs and root causes"""
         entries = []
@@ -280,6 +333,29 @@ class JSONLParser:
 
         return entries
 
+    def _extract_compaction_summary(self, content: str, timestamp: str, uuid: str) -> List[ExtractedEntry]:
+        """Extract post-compaction conversation summaries"""
+        entries = []
+
+        # Look for the characteristic pattern of compaction summaries
+        if "This session is being continued from a previous conversation that ran out of context" in content:
+            # Extract the entire summary starting after "Analysis:"
+            analysis_match = re.search(r'Analysis:\s*(.*)', content, re.DOTALL)
+            if analysis_match:
+                summary_content = analysis_match.group(1).strip()
+
+                # Only extract if it's substantial (compaction summaries are usually very long)
+                if len(summary_content) > 500:
+                    entries.append(ExtractedEntry(
+                        type='note',
+                        content=f"# Session Continuation Summary\n\n{summary_content}",
+                        confidence=1.0,  # These are comprehensive summaries
+                        timestamp=timestamp,
+                        source_uuid=uuid
+                    ))
+
+        return entries
+
     def _extract_from_message(self, message: Dict) -> List[ExtractedEntry]:
         """
         Extract workshop entries from a single message.
@@ -305,10 +381,20 @@ class JSONLParser:
         timestamp = message.get('timestamp', datetime.now().isoformat())
         uuid = message.get('uuid', '')
 
+        # NEW: Extract compaction summaries (user messages only - these are system-generated)
+        if msg_type == 'user':
+            compaction = self._extract_compaction_summary(content, timestamp, uuid)
+            entries.extend(compaction)
+
         # NEW: Extract summary sections (assistant only)
         if msg_type == 'assistant':
             summaries = self._extract_summary_sections(content, timestamp, uuid)
             entries.extend(summaries)
+
+        # NEW: Extract completion summaries (assistant only)
+        if msg_type == 'assistant':
+            completions = self._extract_completion_summaries(content, timestamp, uuid)
+            entries.extend(completions)
 
         # NEW: Extract problem/solution pairs (assistant only)
         if msg_type == 'assistant':
@@ -376,6 +462,10 @@ class JSONLParser:
         """Check if content is likely noise (hooks, JSON, etc.)"""
         if not content or len(content) < 20:
             return True
+
+        # EXCEPTION: Always allow compaction summaries through
+        if "This session is being continued from a previous conversation" in content:
+            return False
 
         # Skip if it looks like JSON
         if content.strip().startswith(('{', '[', '"role":', '"message":')):

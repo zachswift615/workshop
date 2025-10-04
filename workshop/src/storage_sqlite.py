@@ -100,7 +100,8 @@ class WorkshopStorageSQLite:
         reasoning: Optional[str] = None,
         tags: Optional[List[str]] = None,
         files: Optional[List[str]] = None,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
+        timestamp: Optional[str] = None
     ) -> Dict:
         """
         Add a new entry to the workshop.
@@ -112,6 +113,7 @@ class WorkshopStorageSQLite:
             tags: Optional list of tags
             files: Optional list of related files
             metadata: Optional additional metadata
+            timestamp: Optional timestamp (ISO format). Defaults to now.
 
         Returns:
             The created entry dict
@@ -119,7 +121,8 @@ class WorkshopStorageSQLite:
         from .git_utils import get_git_info
 
         entry_id = str(uuid.uuid4())
-        timestamp = datetime.now().isoformat()
+        if timestamp is None:
+            timestamp = datetime.now().isoformat()
 
         # Get git info
         git_info = get_git_info()
@@ -256,6 +259,45 @@ class WorkshopStorageSQLite:
                 entries.append(entry)
 
             return entries
+
+    def get_entry_by_id(self, entry_id: str) -> Optional[Dict]:
+        """
+        Get a single entry by ID.
+
+        Args:
+            entry_id: Entry UUID
+
+        Returns:
+            Entry dict or None if not found
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM entries WHERE id = ?", (entry_id,))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            entry = dict(row)
+
+            # Load tags
+            tags_cursor = conn.execute(
+                "SELECT tag FROM tags WHERE entry_id = ?", (entry_id,)
+            )
+            entry['tags'] = [t['tag'] for t in tags_cursor.fetchall()]
+
+            # Load files
+            files_cursor = conn.execute(
+                "SELECT file_path FROM files WHERE entry_id = ?", (entry_id,)
+            )
+            entry['files'] = [f['file_path'] for f in files_cursor.fetchall()]
+
+            # Parse metadata if present
+            if entry.get('metadata'):
+                entry['metadata'] = json.loads(entry['metadata'])
+            else:
+                entry['metadata'] = {}
+
+            return entry
 
     def search(self, query: str, limit: Optional[int] = None) -> List[Dict]:
         """

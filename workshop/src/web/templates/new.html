@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}New Entry - Workshop Admin{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">Create New Entry</h1>
+        <p class="mt-2 text-sm text-gray-600">Add a new entry to your workshop</p>
+    </div>
+
+    <!-- Create Form -->
+    <div class="bg-white shadow rounded-lg">
+        <form method="post" class="px-4 py-5 sm:p-6">
+            <div class="space-y-6">
+                <!-- Type -->
+                <div>
+                    <label for="type" class="block text-sm font-medium text-gray-700">Type</label>
+                    <select name="type" id="type" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border">
+                        <option value="note">Note</option>
+                        <option value="gotcha">Gotcha</option>
+                        <option value="decision">Decision</option>
+                        <option value="preference">Preference</option>
+                    </select>
+                    <p class="mt-2 text-sm text-gray-500">Choose the type of entry</p>
+                </div>
+
+                <!-- Content -->
+                <div>
+                    <label for="content" class="block text-sm font-medium text-gray-700">Content</label>
+                    <textarea name="content" id="content" rows="10" required
+                              placeholder="Enter the main content here..."
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"></textarea>
+                    <p class="mt-2 text-sm text-gray-500">The main content of this entry</p>
+                </div>
+
+                <!-- Reasoning/Metadata -->
+                <div>
+                    <label for="reasoning" class="block text-sm font-medium text-gray-700">
+                        <span id="reasoning-label">Additional Context</span>
+                        <span class="text-gray-500 font-normal">(optional)</span>
+                    </label>
+                    <textarea name="reasoning" id="reasoning" rows="5"
+                              placeholder="Optional additional context or reasoning..."
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"></textarea>
+                    <p class="mt-2 text-sm text-gray-500">Additional context or reasoning</p>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-6 flex justify-between">
+                <a href="/" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Create Entry
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Update reasoning label based on type
+document.getElementById('type').addEventListener('change', function(e) {
+    const label = document.getElementById('reasoning-label');
+    label.textContent = e.target.value === 'decision' ? 'Reasoning' : 'Additional Context';
+});
+</script>
+{% endblock %}
