@@ -41,8 +41,9 @@ class WorkshopStorageSQLite:
 
         Priority order:
         1. WORKSHOP_DIR environment variable
-        2. .workshop/ in current dir or parents (git root)
-        3. ~/.workshop/ for global storage
+        2. Existing .workshop/ in current dir or parents
+        3. .workshop/ at git root (if in git repo)
+        4. .workshop/ in current directory (fallback)
         """
         # Check environment variable first
         env_dir = os.environ.get('WORKSHOP_DIR')
@@ -50,20 +51,25 @@ class WorkshopStorageSQLite:
             return Path(env_dir).expanduser().resolve()
 
         current = Path.cwd()
+        git_root = None
 
-        # Check current directory and parents for existing .workshop/
+        # Search upward for existing .workshop/ or git root
         for parent in [current] + list(current.parents):
             workshop_dir = parent / ".workshop"
+
+            # If .workshop exists, use it regardless of git
             if workshop_dir.exists():
                 return workshop_dir
 
-            # Stop at git root
-            if (parent / ".git").exists():
-                # Create .workshop at git root
-                workshop_dir = parent / ".workshop"
-                return workshop_dir
+            # Remember git root if we find one
+            if (parent / ".git").exists() and git_root is None:
+                git_root = parent
 
-        # No git repo found, use project-local .workshop
+        # If we found a git root, create .workshop there
+        if git_root:
+            return git_root / ".workshop"
+
+        # Fallback: create in current directory
         return current / ".workshop"
 
     def _get_connection(self) -> sqlite3.Connection:
