@@ -884,9 +884,9 @@ def import_sessions(files, execute, interactive, since, force):
         cwd = Path(os.getcwd())
 
         # Normalize path for Claude's directory structure
-        norm_path = str(cwd).replace('/', '-')
-        if norm_path.startswith('-'):
-            norm_path = norm_path[1:]
+        # Claude Code converts absolute paths to directory names like:
+        # /Users/name/project -> -Users-name-project
+        norm_path = str(cwd).replace('/', '-').replace('_', '-')
 
         claude_projects = Path.home() / '.claude' / 'projects' / norm_path
 
