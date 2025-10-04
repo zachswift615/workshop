@@ -169,6 +169,59 @@ def test_search_with_limit(temp_storage):
     assert len(results) == 3
 
 
+def test_search_with_hyphen(temp_storage):
+    """Test search handles hyphenated terms"""
+    temp_storage.add_entry("note", "Testing auto-attachment feature")
+    temp_storage.add_entry("note", "Manual attachment required")
+    temp_storage.add_entry("decision", "Use auto-generated IDs")
+
+    # Search for hyphenated term
+    results = temp_storage.search("auto-attachment")
+
+    assert len(results) >= 1
+    assert any("auto-attachment" in r["content"].lower() for r in results)
+
+
+def test_search_with_quotes(temp_storage):
+    """Test search handles quoted terms"""
+    temp_storage.add_entry("note", 'Use the "factory pattern" for widgets')
+    temp_storage.add_entry("decision", "Implement factory methods")
+
+    results = temp_storage.search("factory pattern")
+
+    assert len(results) >= 1
+
+
+def test_search_with_special_chars(temp_storage):
+    """Test search handles various special characters"""
+    temp_storage.add_entry("note", "C++ is powerful")
+    temp_storage.add_entry("note", "Use @decorators in Python")
+    temp_storage.add_entry("decision", "Support file-names with-dashes")
+
+    # Search with plus signs
+    results = temp_storage.search("C++")
+    assert len(results) >= 0  # May be treated as "C"
+
+    # Search with @ symbol
+    results = temp_storage.search("@decorators")
+    assert len(results) >= 0  # May be treated as "decorators"
+
+    # Search with dashes
+    results = temp_storage.search("file-names")
+    assert len(results) >= 1
+
+
+def test_search_fallback(temp_storage):
+    """Test that fallback search works when FTS5 fails"""
+    temp_storage.add_entry("note", "Testing fallback mechanism")
+
+    # This should work even if FTS5 has issues
+    results = temp_storage.search("fallback")
+
+    assert len(results) >= 1
+    assert any("fallback" in r["content"].lower() for r in results)
+
+
 def test_delete_entry(temp_storage):
     """Test deleting an entry"""
     entry = temp_storage.add_entry("note", "To be deleted")

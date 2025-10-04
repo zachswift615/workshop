@@ -312,7 +312,18 @@ class WorkshopStorageSQLite:
         """
         with self._get_connection() as conn:
             # Use FTS5 for full-text search
-            fts_query = " AND ".join(query.split())  # Convert to FTS5 AND query
+            # Replace hyphens with spaces for better FTS5 compatibility
+            # FTS5 treats hyphens as word separators
+            normalized_query = query.replace("-", " ")
+            terms = normalized_query.split()
+
+            # Quote each term to make it a phrase search
+            if len(terms) == 1:
+                fts_query = f'"{terms[0]}"'
+            else:
+                # Multiple terms - join with AND
+                quoted_terms = [f'"{term}"' for term in terms]
+                fts_query = " AND ".join(quoted_terms)
 
             sql = """
                 SELECT e.* FROM entries e
@@ -327,10 +338,66 @@ class WorkshopStorageSQLite:
                 sql += " LIMIT ?"
                 params.append(limit)
 
+            try:
+                cursor = conn.execute(sql, params)
+                rows = cursor.fetchall()
+            except sqlite3.OperationalError as e:
+                # FTS5 syntax error - fall back to LIKE search
+                if "fts5" in str(e).lower():
+                    return self._fallback_search(query, limit)
+                raise
+
+            # Convert to dicts
+            entries = []
+            for row in rows:
+                entry = dict(row)
+                entry_id = entry['id']
+
+                # Load tags
+                tags_cursor = conn.execute(
+                    "SELECT tag FROM tags WHERE entry_id = ?", (entry_id,)
+                )
+                entry['tags'] = [t['tag'] for t in tags_cursor.fetchall()]
+
+                # Load files
+                files_cursor = conn.execute(
+                    "SELECT file_path FROM files WHERE entry_id = ?", (entry_id,)
+                )
+                entry['files'] = [f['file_path'] for f in files_cursor.fetchall()]
+
+                # Parse metadata
+                if entry.get('metadata'):
+                    entry['metadata'] = json.loads(entry['metadata'])
+                else:
+                    entry['metadata'] = {}
+
+                entries.append(entry)
+
+            return entries
+
+    def _fallback_search(self, query: str, limit: Optional[int] = None) -> List[Dict]:
+        """
+        Fallback search using LIKE when FTS5 query fails.
+        Used for complex queries that FTS5 can't parse.
+        """
+        with self._get_connection() as conn:
+            # Simple LIKE search across content and metadata
+            sql = """
+                SELECT * FROM entries
+                WHERE content LIKE ? OR metadata LIKE ?
+                ORDER BY timestamp DESC
+            """
+
+            params = [f"%{query}%", f"%{query}%"]
+
+            if limit:
+                sql += " LIMIT ?"
+                params.append(limit)
+
             cursor = conn.execute(sql, params)
             rows = cursor.fetchall()
 
-            # Convert to dicts
+            # Convert to dicts (same as search method)
             entries = []
             for row in rows:
                 entry = dict(row)

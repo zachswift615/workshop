@@ -289,11 +289,24 @@ def recent(limit):
 @main.command()
 @click.argument('query')
 @click.option('--limit', '-n', type=int, default=10, help='Number of results')
-def search(query, limit):
+@click.option('--type', '-t', type=click.Choice(['note', 'decision', 'gotcha', 'preference', 'goal', 'next']), help='Filter by entry type')
+@click.option('--format', '-f', type=click.Choice(['compact', 'full']), default='compact', help='Output format')
+def search(query, limit, type, format):
     """Search entries by keyword"""
-    store = get_storage()
-    results = store.search(query, limit=limit)
-    display_entries(results, show_full=False)
+    try:
+        store = get_storage()
+        results = store.search(query, limit=limit)
+
+        # Filter by type if specified
+        if type:
+            results = [e for e in results if e['type'] == type]
+
+        # Display with appropriate format
+        show_full = (format == 'full')
+        display_entries(results, show_full=show_full)
+    except Exception as e:
+        display_error(f"Search failed: {str(e)}")
+        return 1
 
 
 @main.command()

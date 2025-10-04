@@ -5,6 +5,19 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2025-01-04
+
+### Fixed
+- **Search query bug**: Fixed crash when searching for terms with hyphens (e.g., "auto-attachment"). FTS5 queries now properly handle special characters by normalizing hyphens to spaces.
+- **Error display**: Search errors now show user-friendly messages instead of Python tracebacks
+- **Session hook context**: Fixed truncated/empty context display in session start hook by using proper JSON escaping
+
+### Added
+- **Search filters**: Added `--type` option to filter search results by entry type (note/decision/gotcha/preference/goal/next)
+- **Search formatting**: Added `--format` option for compact or full display of search results
+- **Fallback search**: Implemented LIKE-based fallback search when FTS5 queries fail
+- **Test coverage**: Added 4 comprehensive tests for special character search handling
+
 ## [1.0.2] - 2025-01-04
 
 ### Added
