@@ -158,6 +158,15 @@ See `.claude/README.md` for details.
 - `workshop next done <text>` - Mark a next step as completed
 - `workshop next clean` - Remove completed next steps
 
+### Delete & Clean
+- `workshop delete <id>` - Delete an entry by ID
+- `workshop delete last` - Delete the most recent entry
+- `workshop clean` - Interactively delete entries (last 7 days)
+- `workshop clean --type <type>` - Clean only specific entry type
+- `workshop clean --days <n>` - Clean entries from last N days
+- `workshop clear <date>` - Delete all entries before date (e.g., "2025-01-01" or "30 days ago")
+- `workshop clear <date> --type <type>` - Delete entries of specific type before date
+
 ### Utilities
 - `workshop info` - Show workspace information
 - `workshop init` - Set up Claude Code integration

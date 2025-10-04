@@ -764,3 +764,100 @@ class WorkshopStorageSQLite:
         """Get the most recent session"""
         sessions = self.get_sessions(limit=1)
         return sessions[0] if sessions else None
+
+    # ========================================================================
+    # Delete Operations
+    # ========================================================================
+
+    def delete_entry(self, entry_id: str) -> bool:
+        """
+        Delete an entry by ID.
+
+        Args:
+            entry_id: Entry ID or prefix to delete
+
+        Returns:
+            True if entry was deleted, False if not found
+        """
+        with self._get_connection() as conn:
+            # Try exact match first
+            cursor = conn.execute("SELECT id FROM entries WHERE id = ?", (entry_id,))
+            row = cursor.fetchone()
+
+            if not row:
+                # Try prefix match
+                cursor = conn.execute("SELECT id FROM entries WHERE id LIKE ?", (f"{entry_id}%",))
+                row = cursor.fetchone()
+
+            if row:
+                # Delete related data first (foreign keys will cascade if set up)
+                conn.execute("DELETE FROM tags WHERE entry_id = ?", (row['id'],))
+                conn.execute("DELETE FROM files WHERE entry_id = ?", (row['id'],))
+                conn.execute("DELETE FROM entries WHERE id = ?", (row['id'],))
+                conn.commit()
+                return True
+            return False
+
+    def get_last_entry(self) -> Optional[Dict]:
+        """Get the most recent entry"""
+        entries = self.get_entries(limit=1)
+        return entries[0] if entries else None
+
+    def delete_entries_by_type(self, entry_type: str) -> int:
+        """
+        Delete all entries of a specific type.
+
+        Args:
+            entry_type: Type of entries to delete
+
+        Returns:
+            Number of entries deleted
+        """
+        with self._get_connection() as conn:
+            # Get IDs to delete
+            cursor = conn.execute("SELECT id FROM entries WHERE type = ?", (entry_type,))
+            entry_ids = [row['id'] for row in cursor.fetchall()]
+
+            if not entry_ids:
+                return 0
+
+            # Delete related data
+            for entry_id in entry_ids:
+                conn.execute("DELETE FROM tags WHERE entry_id = ?", (entry_id,))
+                conn.execute("DELETE FROM files WHERE entry_id = ?", (entry_id,))
+
+            # Delete entries
+            conn.execute("DELETE FROM entries WHERE type = ?", (entry_type,))
+            conn.commit()
+            return len(entry_ids)
+
+    def delete_entries_before(self, before_date: datetime) -> int:
+        """
+        Delete entries before a specific date.
+
+        Args:
+            before_date: Delete entries before this datetime
+
+        Returns:
+            Number of entries deleted
+        """
+        with self._get_connection() as conn:
+            # Get IDs to delete
+            cursor = conn.execute(
+                "SELECT id FROM entries WHERE timestamp < ?",
+                (before_date.isoformat(),)
+            )
+            entry_ids = [row['id'] for row in cursor.fetchall()]
+
+            if not entry_ids:
+                return 0
+
+            # Delete related data
+            for entry_id in entry_ids:
+                conn.execute("DELETE FROM tags WHERE entry_id = ?", (entry_id,))
+                conn.execute("DELETE FROM files WHERE entry_id = ?", (entry_id,))
+
+            # Delete entries
+            conn.execute("DELETE FROM entries WHERE timestamp < ?", (before_date.isoformat(),))
+            conn.commit()
+            return len(entry_ids)

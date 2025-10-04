@@ -427,6 +427,146 @@ def export(full, recent, context, output):
 
 
 @main.command()
+@click.argument('entry_id')
+def delete(entry_id):
+    """Delete an entry by ID or 'last' for most recent"""
+    store = get_storage()
+
+    if entry_id.lower() == 'last':
+        last_entry = store.get_last_entry()
+        if not last_entry:
+            display_error("No entries to delete")
+            return
+        entry_id = last_entry['id']
+
+        # Show what we're deleting
+        click.echo(f"\n🗑️  Deleting: {last_entry['type']} - {last_entry['content'][:60]}...")
+        if not click.confirm("Are you sure?"):
+            display_info("Cancelled")
+            return
+
+    if store.delete_entry(entry_id):
+        success(f"Deleted entry: {entry_id}")
+    else:
+        display_error(f"Entry not found: {entry_id}")
+
+
+@main.command()
+@click.option('--type', '-t', 'entry_type',
+              type=click.Choice(['decision', 'note', 'gotcha', 'preference', 'antipattern']),
+              help='Only show entries of this type')
+@click.option('--days', '-d', type=int, default=7, help='Show entries from last N days')
+def clean(entry_type, days):
+    """Interactively delete entries"""
+    from datetime import timedelta
+    store = get_storage()
+
+    # Get recent entries
+    since = datetime.now() - timedelta(days=days)
+    entries = store.get_entries(entry_type=entry_type, since=since, limit=50)
+
+    if not entries:
+        display_info("No entries to clean")
+        return
+
+    click.echo(f"\n🧹 Interactive Clean (last {days} days)\n")
+
+    deleted_count = 0
+    for i, entry in enumerate(entries, 1):
+        # Format entry preview
+        preview = entry['content'][:70]
+        if len(entry['content']) > 70:
+            preview += "..."
+
+        click.echo(f"{i}. [{entry['type']}] {preview}")
+
+        if click.confirm("  Delete this?", default=False):
+            if store.delete_entry(entry['id']):
+                click.echo("  ✓ Deleted")
+                deleted_count += 1
+            else:
+                click.echo("  ✗ Failed")
+
+        if i < len(entries):
+            click.echo()  # Blank line between entries
+
+    click.echo()
+    success(f"Deleted {deleted_count} entries")
+
+
+@main.command()
+@click.argument('before_date')
+@click.option('--type', '-t', 'entry_type',
+              type=click.Choice(['decision', 'note', 'gotcha', 'preference', 'antipattern']),
+              help='Only delete entries of this type')
+def clear(before_date, entry_type):
+    """Delete entries before a date (format: YYYY-MM-DD or '30 days ago')"""
+    from datetime import timedelta
+    from dateutil import parser
+
+    store = get_storage()
+
+    # Parse date
+    try:
+        # Try "N days ago" format
+        if 'days ago' in before_date.lower():
+            days = int(before_date.lower().split()[0])
+            cutoff_date = datetime.now() - timedelta(days=days)
+        # Try "N weeks ago" format
+        elif 'weeks ago' in before_date.lower():
+            weeks = int(before_date.lower().split()[0])
+            cutoff_date = datetime.now() - timedelta(weeks=weeks)
+        # Try "N months ago" format
+        elif 'months ago' in before_date.lower():
+            months = int(before_date.lower().split()[0])
+            cutoff_date = datetime.now() - timedelta(days=months * 30)
+        else:
+            # Try parsing as date string
+            cutoff_date = parser.parse(before_date)
+    except (ValueError, AttributeError) as e:
+        display_error(f"Invalid date format: {before_date}")
+        click.echo("Examples: '2025-01-01', '30 days ago', '2 weeks ago'")
+        return
+
+    # Get count of entries that will be deleted
+    if entry_type:
+        entries = store.get_entries(entry_type=entry_type)
+        entries_to_delete = [e for e in entries if datetime.fromisoformat(e['timestamp']) < cutoff_date]
+        count = len(entries_to_delete)
+    else:
+        # Count all entries before date
+        with store._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT COUNT(*) as count FROM entries WHERE timestamp < ?",
+                (cutoff_date.isoformat(),)
+            )
+            count = cursor.fetchone()['count']
+
+    if count == 0:
+        display_info(f"No entries found before {cutoff_date.strftime('%Y-%m-%d')}")
+        return
+
+    # Confirm deletion
+    type_str = f" {entry_type}" if entry_type else ""
+    click.echo(f"\n⚠️  This will delete {count}{type_str} entries before {cutoff_date.strftime('%Y-%m-%d %H:%M')}")
+    if not click.confirm("Are you sure?", default=False):
+        display_info("Cancelled")
+        return
+
+    # Delete entries
+    if entry_type:
+        # Delete by type and date
+        deleted = 0
+        for entry in entries_to_delete:
+            if store.delete_entry(entry['id']):
+                deleted += 1
+        success(f"Deleted {deleted} {entry_type} entries")
+    else:
+        deleted = store.delete_entries_before(cutoff_date)
+        success(f"Deleted {deleted} entries")
+
+
+@main.command()
 def info():
     """Show workspace information"""
     store = get_storage()
