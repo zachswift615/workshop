@@ -763,14 +763,13 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                         except json.JSONDecodeError:
                             existing = {}
 
-                    # Merge settings
-                    if 'hooks' not in existing:
-                        existing['hooks'] = template_settings.get('hooks', {})
-                        files_copied.append('settings.json (hooks added)')
+                    # Always update hooks from template
+                    existing['hooks'] = template_settings.get('hooks', {})
 
-                    if 'customInstructions' not in existing:
-                        existing['customInstructions'] = template_settings.get('customInstructions', '')
-                        files_copied.append('settings.json (instructions added)')
+                    # Always update customInstructions from template
+                    existing['customInstructions'] = template_settings.get('customInstructions', '')
+
+                    files_copied.append('settings.json (updated)')
 
                     with open(settings_dst, 'w') as f:
                         json.dump(existing, f, indent=2)
@@ -820,11 +819,11 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 files_copied.append('README.md')
 
             if files_copied:
-                success_messages.append(f"✓ Local configuration created: .claude/")
+                success_messages.append(f"✓ Local configuration updated: .claude/")
                 for file in files_copied:
                     success_messages.append(f"  • {file}")
             else:
-                success_messages.append("ℹ Local configuration already exists")
+                success_messages.append("✓ Local configuration up to date")
 
         except Exception as e:
             error(f"Failed to set up local configuration: {e}")
