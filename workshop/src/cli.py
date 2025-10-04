@@ -325,6 +325,58 @@ def summary(days):
 # ============================================================================
 
 @main.command()
+@click.option('--full', is_flag=True, help='Export everything including notes')
+@click.option('--recent', is_flag=True, help='Export only recent context (last 7 days)')
+@click.option('--context', is_flag=True, help='Export only current state and goals')
+@click.option('--output', '-o', type=click.Path(), help='Save to file instead of stdout')
+def export(full, recent, context, output):
+    """Export Workshop context for web chat conversations"""
+    from .export import format_export
+
+    store = get_storage()
+
+    # Determine time range
+    if recent:
+        since = datetime.now() - timedelta(days=7)
+    elif context:
+        since = datetime.now() - timedelta(days=1)  # Just today
+    else:
+        since = datetime.now() - timedelta(days=30)  # Default: last month
+
+    # Get data
+    recent_entries = store.get_entries(limit=100, since=since)
+    current_state = store.get_current_state()
+    prefs = store.get_preferences()
+
+    # Determine export mode
+    if full:
+        mode = "full"
+    elif context:
+        mode = "context"
+    elif recent:
+        mode = "recent"
+    else:
+        mode = "default"
+
+    # Format export
+    exported = format_export(
+        recent_entries=recent_entries,
+        current_state=current_state,
+        preferences=prefs,
+        workspace_dir=store.workspace_dir,
+        mode=mode
+    )
+
+    # Output
+    if output:
+        output_path = Path(output)
+        output_path.write_text(exported)
+        success(f"Exported to {output_path}")
+    else:
+        click.echo(exported)
+
+
+@main.command()
 def info():
     """Show workspace information"""
     store = get_storage()

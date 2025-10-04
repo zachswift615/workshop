@@ -62,6 +62,20 @@ workshop goal add "Implement caching layer"
 
 **Most users never need to run these commands** - just let Claude manage everything!
 
+### Export for Web Chat
+
+Want to continue a conversation in Claude.ai web chat with full context from your Claude Code sessions?
+
+```bash
+workshop export              # Export last month of context
+workshop export --recent     # Export last week only
+workshop export --context    # Export just current goals/state
+workshop export --full       # Export everything including notes
+workshop export -o context.md # Save to file
+```
+
+Copy the output and paste it into a web chat to give Claude continuity between Code and web sessions!
+
 ## Data Storage
 
 Workshop uses SQLite for fast, efficient storage:
@@ -143,6 +157,7 @@ See `.claude/README.md` for details.
 ### Utilities
 - `workshop info` - Show workspace information
 - `workshop init` - Set up Claude Code integration
+- `workshop export` - Export context for web chat (with --recent, --context, --full options)
 
 ## License
 
