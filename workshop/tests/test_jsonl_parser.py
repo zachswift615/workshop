@@ -109,3 +109,74 @@ def test_parse_file_basic_structure(temp_jsonl):
     assert result.messages_processed >= 1
     assert result.last_message_uuid == "test-uuid-1"
     assert isinstance(result.entries, list)
+
+
+def test_pattern_matching():
+    """Test that patterns match expected keywords"""
+    parser = JSONLParser()
+
+    # Test decision pattern
+    assert parser.decision_pattern.search("We decided to use PostgreSQL")
+    assert parser.decision_pattern.search("chose to implement caching")
+
+    # Test gotcha pattern
+    assert parser.gotcha_pattern.search("Watch out for the rate limit")
+    assert parser.gotcha_pattern.search("This is a gotcha")
+
+    # Test preference pattern
+    assert parser.preference_pattern.search("I prefer type hints")
+    assert parser.preference_pattern.search("We typically use React")
+
+
+def test_filter_from_uuid(temp_jsonl):
+    """Test filtering messages from a specific UUID"""
+    messages = [
+        {"uuid": "uuid-1", "conversation": [], "timestamp": "2025-01-01T10:00:00Z"},
+        {"uuid": "uuid-2", "conversation": [], "timestamp": "2025-01-01T11:00:00Z"},
+        {"uuid": "uuid-3", "conversation": [], "timestamp": "2025-01-01T12:00:00Z"},
+    ]
+
+    with open(temp_jsonl, 'w') as f:
+        for msg in messages:
+            f.write(json.dumps(msg) + '\n')
+
+    parser = JSONLParser()
+    # Parse from uuid-2 onwards
+    result = parser.parse_jsonl_file(temp_jsonl, start_from_uuid="uuid-2")
+
+    # Should only process uuid-3 (the one after uuid-2)
+    assert result.last_message_uuid == "uuid-3"
+
+
+def test_calculate_file_hash(temp_jsonl):
+    """Test file hash calculation"""
+    temp_jsonl.write_text('{"test": "content"}')
+
+    parser = JSONLParser()
+    hash1 = parser.calculate_file_hash(temp_jsonl)
+    hash2 = parser.calculate_file_hash(temp_jsonl)
+
+    # Same file should produce same hash
+    assert hash1 == hash2
+    assert len(hash1) == 64  # SHA256 hash length
+
+
+def test_session_summary_extraction(temp_jsonl):
+    """Test extraction of session summary"""
+    messages = [{
+        "uuid": "test-uuid-1",
+        "conversation": [{
+            "role": "assistant",
+            "message": "Let me summarize what we accomplished:\n\n1. Fixed the bug\n2. Added tests",
+            "created_at": "2025-01-01T12:00:00Z"
+        }]
+    }]
+
+    with open(temp_jsonl, 'w') as f:
+        f.write(json.dumps(messages[0]) + '\n')
+
+    parser = JSONLParser()
+    result = parser.parse_jsonl_file(temp_jsonl)
+
+    # Should have some summary
+    assert result.session_summary is not None

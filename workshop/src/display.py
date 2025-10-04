@@ -18,7 +18,14 @@ console = Console()
 def format_timestamp(iso_timestamp: str) -> str:
     """Format ISO timestamp to relative time (e.g., '2 hours ago')"""
     dt = datetime.fromisoformat(iso_timestamp)
-    now = datetime.now()
+    # Make both datetimes timezone-aware or both naive for comparison
+    if dt.tzinfo is not None:
+        # dt is timezone-aware, make now timezone-aware too
+        from datetime import timezone
+        now = datetime.now(timezone.utc)
+    else:
+        # dt is naive, use naive now
+        now = datetime.now()
     diff = now - dt
 
     if diff.days > 0:
