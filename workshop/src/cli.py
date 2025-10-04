@@ -515,7 +515,7 @@ def init(global_config, local_config):
         else:
             settings = {}
 
-        # Add Workshop custom instructions
+        # Add Workshop custom instructions with markers for easy replacement
         workshop_instructions = """## Workshop CLI - Persistent Context Tool
 
 If the `workshop` CLI is available in this project, use it liberally to maintain context across sessions.
@@ -529,10 +529,10 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 - Document gotchas: `workshop gotcha "<text>" -t tag1 -t tag2`
 - Add notes: `workshop note "<text>"`
 - Track preferences: `workshop preference "<text>" --category code_style`
-- Manage state: `workshop goal add "<text>"` and `workshop next "<text>"`
+- Manage goals: `workshop goal add "<text>"`, `workshop goal done "<text>"`, `workshop goal list`
+- Manage next steps: `workshop next add "<text>"`, `workshop next done "<text>"`
 
-**Query context when needed (use these frequently!):**
-- `workshop why "<topic>"` - THE KILLER FEATURE! Answers "why did we do X?" - prioritizes decisions with reasoning
+**Query context when needed:**
 - `workshop context` - Current session summary
 - `workshop search "<query>"` - Find relevant entries
 - `workshop recent` - Recent activity
@@ -545,25 +545,42 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 - Gotchas and constraints
 - Current goals and next steps
 
-**Best Practice:** When you wonder "why did we choose X?" or "why is this implemented this way?", run `workshop why "X"` first before asking the user!
+**Managing goals and next steps:**
+- Add new goals at the start of work: `workshop goal add "<what you're building>"`
+- Mark goals complete when done: `workshop goal done "<partial text match>"`
+- Add next steps as you plan: `workshop next add "<specific task>"`
+- Mark next steps complete as you finish: `workshop next done "<partial text match>"`
+- This keeps your context clean and prevents stale goals from appearing in exports
 
 **Note:** Only use Workshop if it's installed in the project. Check with `command -v workshop` or try running a workshop command."""
 
-        # Append to existing custom instructions or create new
+        # Update custom instructions, replacing Workshop section if it exists
         existing_instructions = settings.get('customInstructions', '')
-        if 'Workshop CLI' not in existing_instructions:
+
+        import re
+        # Look for Workshop section using flexible pattern
+        workshop_pattern = r'## Workshop CLI - Persistent Context Tool.*?(?=\n##|\Z)'
+
+        if re.search(workshop_pattern, existing_instructions, re.DOTALL):
+            # Replace existing Workshop section
+            settings['customInstructions'] = re.sub(
+                workshop_pattern,
+                workshop_instructions.strip(),
+                existing_instructions,
+                flags=re.DOTALL
+            )
+            success_messages.append(f"✓ Global configuration updated (Workshop section replaced)")
+        else:
+            # Append Workshop section
             if existing_instructions:
                 settings['customInstructions'] = existing_instructions + '\n\n' + workshop_instructions
             else:
                 settings['customInstructions'] = workshop_instructions
+            success_messages.append(f"✓ Global configuration created with Workshop instructions")
 
-            # Write back
-            with open(global_settings_path, 'w') as f:
-                json.dump(settings, f, indent=2)
-
-            success_messages.append(f"✓ Global configuration updated: {global_settings_path}")
-        else:
-            success_messages.append(f"ℹ Global configuration already contains Workshop instructions")
+        # Write back
+        with open(global_settings_path, 'w') as f:
+            json.dump(settings, f, indent=2)
 
     # Local configuration
     if local_config:
