@@ -152,7 +152,11 @@ See `.claude/README.md` for details.
 ### State Management
 - `workshop goal add <text>` - Add a goal
 - `workshop goal list` - List active goals
-- `workshop next <text>` - Add a next step/TODO
+- `workshop goal done <text>` - Mark a goal as completed
+- `workshop goal clean` - Remove completed goals
+- `workshop next add <text>` - Add a next step/TODO
+- `workshop next done <text>` - Mark a next step as completed
+- `workshop next clean` - Remove completed next steps
 
 ### Utilities
 - `workshop info` - Show workspace information

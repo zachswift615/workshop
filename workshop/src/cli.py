@@ -179,13 +179,63 @@ def goal_clear():
     success("All goals cleared")
 
 
-@main.command()
+@goal.command('done')
+@click.argument('goal_text')
+def goal_done(goal_text):
+    """Mark a goal as completed"""
+    store = get_storage()
+    if store.complete_goal(goal_text):
+        success(f"Goal completed: {goal_text}")
+    else:
+        display_error(f"No matching goal found for: {goal_text}")
+
+
+@goal.command('clean')
+def goal_clean():
+    """Remove completed goals"""
+    store = get_storage()
+    count = store.clear_completed_goals()
+    if count > 0:
+        success(f"Removed {count} completed goal{'s' if count != 1 else ''}")
+    else:
+        display_info("No completed goals to remove")
+
+
+@main.group()
+def next():
+    """Manage next steps / TODOs"""
+    pass
+
+
+@next.command('add')
 @click.argument('content')
-def next(content):
+def next_add(content):
     """Add a next step / TODO"""
     store = get_storage()
     store.add_next_step(content)
     success(f"Next step added: {content}")
+
+
+@next.command('done')
+@click.argument('step_text')
+def next_done(step_text):
+    """Mark a next step as completed"""
+    store = get_storage()
+    if store.complete_next_step(step_text):
+        success(f"Next step completed: {step_text}")
+    else:
+        display_error(f"No matching next step found for: {step_text}")
+
+
+@next.command('clean')
+def next_clean():
+    """Remove completed next steps"""
+    store = get_storage()
+    count = store.clear_completed_next_steps()
+    if count > 0:
+        success(f"Removed {count} completed next step{'s' if count != 1 else ''}")
+    else:
+        display_info("No completed next steps to remove")
 
 
 # ============================================================================

@@ -492,6 +492,94 @@ class WorkshopStorageSQLite:
             conn.execute("DELETE FROM current_state WHERE type = 'next_step'")
             conn.commit()
 
+    def complete_goal(self, goal_text: str) -> bool:
+        """
+        Mark a goal as completed by matching text.
+
+        Args:
+            goal_text: The goal text to match (case-insensitive, partial match)
+
+        Returns:
+            True if a goal was found and marked complete, False otherwise
+        """
+        with self._get_connection() as conn:
+            # Find goal by partial text match
+            cursor = conn.execute("""
+                SELECT id FROM current_state
+                WHERE type = 'goal' AND completed = 0
+                AND LOWER(content) LIKE LOWER(?)
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """, (f"%{goal_text}%",))
+
+            row = cursor.fetchone()
+            if row:
+                conn.execute("""
+                    UPDATE current_state SET completed = 1
+                    WHERE id = ?
+                """, (row['id'],))
+                conn.commit()
+                return True
+            return False
+
+    def complete_next_step(self, step_text: str) -> bool:
+        """
+        Mark a next step as completed by matching text.
+
+        Args:
+            step_text: The step text to match (case-insensitive, partial match)
+
+        Returns:
+            True if a step was found and marked complete, False otherwise
+        """
+        with self._get_connection() as conn:
+            # Find step by partial text match
+            cursor = conn.execute("""
+                SELECT id FROM current_state
+                WHERE type = 'next_step' AND completed = 0
+                AND LOWER(content) LIKE LOWER(?)
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """, (f"%{step_text}%",))
+
+            row = cursor.fetchone()
+            if row:
+                conn.execute("""
+                    UPDATE current_state SET completed = 1
+                    WHERE id = ?
+                """, (row['id'],))
+                conn.commit()
+                return True
+            return False
+
+    def clear_completed_goals(self) -> int:
+        """
+        Remove completed goals from database.
+
+        Returns:
+            Number of goals removed
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                DELETE FROM current_state WHERE type = 'goal' AND completed = 1
+            """)
+            conn.commit()
+            return cursor.rowcount
+
+    def clear_completed_next_steps(self) -> int:
+        """
+        Remove completed next steps from database.
+
+        Returns:
+            Number of steps removed
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                DELETE FROM current_state WHERE type = 'next_step' AND completed = 1
+            """)
+            conn.commit()
+            return cursor.rowcount
+
     # ========================================================================
     # Session Management
     # ========================================================================
