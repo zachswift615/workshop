@@ -121,6 +121,36 @@ def test_decision_without_reasoning(runner, temp_workspace, monkeypatch):
     assert result.exit_code == 0, f"Command failed with: {result.output}"
 
 
+def test_changes_to_project_root(runner, temp_workspace, monkeypatch):
+    """Test that CLI changes to project root when run from nested directory"""
+    import src.cli
+    import os
+
+    # Reset global storage
+    src.cli.storage = None
+
+    # Create nested directory structure
+    nested_dir = temp_workspace / "deep" / "nested" / "dir"
+    nested_dir.mkdir(parents=True)
+
+    # Change to nested directory
+    monkeypatch.chdir(nested_dir)
+    assert Path.cwd().resolve() == nested_dir.resolve()
+
+    # Run a workshop command
+    result = runner.invoke(note, ['Test from nested dir'])
+    assert result.exit_code == 0, f"Command failed with: {result.output}"
+
+    # After command, we should have changed to project root
+    # (parent of .workshop directory)
+    expected_root = temp_workspace.resolve()
+    actual_cwd = Path.cwd().resolve()
+    assert actual_cwd == expected_root, f"Expected to be in {expected_root}, but in {actual_cwd}"
+
+    # Reset storage for other tests
+    src.cli.storage = None
+
+
 @patch('src.cli.get_storage')
 def test_web_command_passes_workspace(mock_get_storage, runner, temp_workspace, monkeypatch):
     """

@@ -28,14 +28,12 @@ def get_store():
     This ensures each server instance shows the correct project's data.
     """
     global _startup_workspace
-    if _startup_workspace is None:
-        # Capture workspace on first call (server startup)
-        store = WorkshopStorageSQLite()
-        _startup_workspace = store.workspace_dir
-        return store
-    else:
-        # Use captured workspace for all subsequent requests
+    # Always use the startup workspace if it was set by run()
+    if _startup_workspace is not None:
         return WorkshopStorageSQLite(workspace_dir=_startup_workspace)
+    else:
+        # Fallback: shouldn't happen if run() is called properly
+        return WorkshopStorageSQLite()
 
 def format_timestamp(timestamp_str):
     """Format timestamp as relative time"""

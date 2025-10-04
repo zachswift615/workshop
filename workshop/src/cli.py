@@ -2,6 +2,7 @@
 CLI interface for Workshop
 """
 import click
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
@@ -21,6 +22,18 @@ from .display import (
 storage = None
 
 
+def _change_to_project_root(store: WorkshopStorageSQLite):
+    """
+    Change working directory to project root.
+
+    This ensures workshop commands execute from the project root,
+    preventing creation of nested .workshop directories.
+    """
+    project_root = store.workspace_dir.parent
+    if project_root != Path.cwd():
+        os.chdir(project_root)
+
+
 def get_storage() -> WorkshopStorageSQLite:
     """Get or create storage instance, migrating from JSON if needed"""
     global storage
@@ -29,6 +42,7 @@ def get_storage() -> WorkshopStorageSQLite:
         if should_migrate():
             migrate_json_to_sqlite()
         storage = WorkshopStorageSQLite()
+        _change_to_project_root(storage)
     return storage
 
 
@@ -48,6 +62,7 @@ def main(workspace):
         if should_migrate(workspace_path):
             migrate_json_to_sqlite(workspace_path)
         storage = WorkshopStorageSQLite(workspace_path)
+        _change_to_project_root(storage)
     else:
         storage = get_storage()
 

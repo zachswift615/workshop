@@ -5,6 +5,15 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-01-04
+
+### Added
+- **Auto-cd to project root**: Workshop commands now automatically change to the project root (parent of `.workshop/`) when executed. This prevents Claude Code from creating nested `.workshop` directories when running commands from subdirectories.
+- Test coverage for auto-cd feature (`test_changes_to_project_root`)
+
+### Changed
+- Implemented `_change_to_project_root()` helper function to ensure consistent workspace behavior across all CLI commands
+
 ## [1.0.1] - 2025-01-04
 
 ### Fixed
