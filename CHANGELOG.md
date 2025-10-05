@@ -5,6 +5,19 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-10-05
+
+### Added
+- Add SessionStart hook for resume source
+- Add retry logic for PyPI propagation delay
+
+### Fixed
+- Fix test_changes_to_project_root for new workspace prompt
+
+### Other
+- Replace workspace detection with config-first + weighted heuristics
+
+
 ## [1.0.6] - 2025-10-05
 
 ### Added
@@ -353,3 +366,4 @@ Workshop v1.0.0 marks the transition from prototype to production-ready software
 [0.1.1]: https://github.com/zachswift615/workshop/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/zachswift615/workshop/releases/tag/v0.1.0
 [1.0.6]: https://github.com/zachswift615/workshop/compare/v1.0.5...v1.0.6
+[1.1.0]: https://github.com/zachswift615/workshop/compare/v1.0.6...v1.1.0
