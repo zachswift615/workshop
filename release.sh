@@ -233,10 +233,29 @@ fi
 (cd workshop && python -m twine upload "dist/claude_workshop-${NEW_VERSION}*")
 echo -e "${GREEN}✓ Published to PyPI${NC}"
 
-# Upgrade local installation
+# Upgrade local installation (with retry for PyPI propagation)
 echo -e "\n${BLUE}⬆️  Upgrading local installation...${NC}"
-pip install --upgrade "claude-workshop==${NEW_VERSION}"
-echo -e "${GREEN}✓ Local installation upgraded${NC}"
+echo -e "${YELLOW}Waiting for PyPI to propagate new version...${NC}"
+
+MAX_RETRIES=5
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    sleep 5
+    if pip install --upgrade "claude-workshop==${NEW_VERSION}" 2>/dev/null; then
+        echo -e "${GREEN}✓ Local installation upgraded${NC}"
+        break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+        echo -e "${YELLOW}Retry $RETRY_COUNT/$MAX_RETRIES...${NC}"
+    fi
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo -e "${YELLOW}⚠️  PyPI propagation taking longer than expected.${NC}"
+    echo -e "You can manually upgrade later with:"
+    echo -e "  pip install --upgrade claude-workshop==${NEW_VERSION}"
+fi
 
 echo -e "\n${GREEN}🎉 Release v${NEW_VERSION} complete!${NC}"
 echo -e "\n${BLUE}Next steps:${NC}"
