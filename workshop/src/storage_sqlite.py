@@ -8,6 +8,10 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import uuid
+import click
+
+from .config import WorkshopConfig
+from .project_detection import find_project_root, validate_workspace_path
 
 
 class WorkshopStorageSQLite:
@@ -40,43 +44,125 @@ class WorkshopStorageSQLite:
         Find or create the appropriate workspace directory.
 
         Priority order:
-        1. WORKSHOP_DIR environment variable
-        2. Existing .workshop/ in current dir or parents
-        3. .workshop/ at git root (if in git repo)
-        4. .workshop/ in current directory (fallback)
+        1. WORKSHOP_DIR environment variable (override)
+        2. Config file (~/.workshop/config.json) for this project
+        3. Migrate existing .workshop/ directory (backward compatibility)
+        4. Prompt user for workspace location (first-time setup)
         """
-        # Check environment variable first
+        # 1. Check environment variable first (allows override)
         env_dir = os.environ.get('WORKSHOP_DIR')
         if env_dir:
-            return Path(env_dir).expanduser().resolve()
+            workspace = Path(env_dir).expanduser().resolve()
+            workspace.mkdir(parents=True, exist_ok=True)
+            return workspace
 
+        # 2. Detect project root using heuristics
+        project_root, detection_reason, confidence = find_project_root()
+
+        # 3. Check if this project is registered in config
+        config = WorkshopConfig()
+        project_config = config.get_project_config(project_root)
+
+        if project_config:
+            # Found in config - use configured workspace
+            db_path = Path(project_config['database'])
+            workspace = db_path.parent
+            workspace.mkdir(parents=True, exist_ok=True)
+            return workspace
+
+        # 4. MIGRATION: Check for existing .workshop/ directory (backward compatibility)
+        existing_workspace = self._detect_existing_workspace(project_root)
+        if existing_workspace:
+            # Auto-register the existing workspace
+            db_path = existing_workspace / "workshop.db"
+            config.register_project(project_root, database_path=db_path)
+            click.echo(f"✓ Auto-registered existing workspace: {existing_workspace}")
+            return existing_workspace
+
+        # 5. First-time setup - prompt user for workspace location
+        workspace = self._prompt_for_workspace(project_root, detection_reason, confidence)
+        return workspace
+
+    def _detect_existing_workspace(self, project_root: Path) -> Optional[Path]:
+        """
+        Detect existing .workshop/ directory for migration.
+
+        This maintains backward compatibility by finding workspaces created
+        with the old auto-detection logic.
+        """
+        # Check at project root
+        if (project_root / ".workshop").exists():
+            return project_root / ".workshop"
+
+        # Check current directory if different from project root
         current = Path.cwd()
-        git_root = None
-        home_dir = Path.home()
+        if current != project_root and (current / ".workshop").exists():
+            return current / ".workshop"
 
-        # Search upward for existing .workshop/ or git root
-        # Stop before home directory to avoid using global workspace
-        for parent in [current] + list(current.parents):
-            # Stop at home directory - don't include it in search
-            if parent == home_dir:
-                break
+        return None
 
-            workshop_dir = parent / ".workshop"
+    def _prompt_for_workspace(self, project_root: Path, detection_reason: str, confidence: int) -> Path:
+        """
+        Interactive prompt for workspace location.
 
-            # If .workshop exists, use it (but we've excluded ~/.workshop above)
-            if workshop_dir.exists():
-                return workshop_dir
+        Args:
+            project_root: Detected project root
+            detection_reason: Why this was chosen as project root
+            confidence: Confidence score (0-100)
+        """
+        current = Path.cwd()
 
-            # Remember git root if we find one
-            if (parent / ".git").exists() and git_root is None:
-                git_root = parent
+        click.echo(f"\n📝 Workshop Setup")
+        click.echo(f"\n   Detected project root: {project_root}")
+        click.echo(f"   Reason: {detection_reason}")
+        if confidence > 0:
+            click.echo(f"   Confidence: {confidence} points")
+        click.echo(f"   Current directory: {current}\n")
 
-        # If we found a git root, create .workshop there
-        if git_root:
-            return git_root / ".workshop"
+        click.echo("Where should Workshop store data for this project?")
+        click.echo(f"  1. {project_root}/.workshop (at project root - recommended)")
 
-        # Fallback: create in current directory
-        return current / ".workshop"
+        if current != project_root:
+            click.echo(f"  2. {current}/.workshop (in current directory)")
+            click.echo(f"  3. Custom path")
+            max_choice = 3
+        else:
+            click.echo(f"  2. Custom path")
+            max_choice = 2
+
+        choice = click.prompt("\nSelect", type=str, default="1")
+
+        if choice == "1":
+            workspace = project_root / ".workshop"
+        elif choice == "2" and max_choice == 3:
+            workspace = current / ".workshop"
+        elif (choice == "2" and max_choice == 2) or choice == "3":
+            custom = click.prompt("Enter workspace path")
+            workspace = Path(custom).expanduser().resolve()
+        else:
+            # Invalid choice - use default
+            click.echo(f"Invalid choice, using default: {project_root}/.workshop")
+            workspace = project_root / ".workshop"
+
+        # Validate the path
+        is_valid, error_msg = validate_workspace_path(workspace)
+        if not is_valid:
+            click.echo(f"\n❌ Error: {error_msg}")
+            click.echo("Falling back to project root...")
+            workspace = project_root / ".workshop"
+
+        # Create workspace directory
+        workspace.mkdir(parents=True, exist_ok=True)
+
+        # Register in config
+        db_path = workspace / "workshop.db"
+        config = WorkshopConfig()
+        config.register_project(project_root, database_path=db_path)
+
+        click.echo(f"\n✓ Workspace configured: {workspace}")
+        click.echo(f"✓ Registered for project: {project_root}\n")
+
+        return workspace
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get a database connection with proper settings"""

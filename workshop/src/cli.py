@@ -672,6 +672,11 @@ def init(global_config, local_config):
 
     success_messages = []
 
+    # Initialize workspace (triggers project detection and registration)
+    # This will prompt for workspace location if not already configured
+    storage = get_storage()
+    success_messages.append(f"✓ Workspace: {storage.workspace_dir}")
+
     # Global configuration
     if global_config:
         global_settings_path = Path.home() / ".claude" / "settings.json"
@@ -1247,6 +1252,82 @@ def web(host, port, debug):
     click.echo(f"Press Ctrl+C to stop\n")
 
     run(host=host, port=port, debug=debug, workspace_dir=workspace_path)
+
+
+@main.command()
+def debug():
+    """Show workspace detection and configuration details"""
+    from .config import WorkshopConfig
+    from .project_detection import find_project_root
+    import os
+
+    click.echo("\n🔍 Workshop Debug Information\n")
+
+    # Environment override
+    env_dir = os.environ.get('WORKSHOP_DIR')
+    if env_dir:
+        click.echo(f"📍 WORKSHOP_DIR: {env_dir} (overriding detection)")
+        click.echo()
+
+    # Project detection
+    project_root, detection_reason, confidence = find_project_root()
+    click.echo(f"📂 Project Detection:")
+    click.echo(f"   Root: {project_root}")
+    click.echo(f"   Reason: {detection_reason}")
+    click.echo(f"   Confidence: {confidence} points")
+    click.echo(f"   Current dir: {Path.cwd()}")
+    click.echo()
+
+    # Config status
+    config = WorkshopConfig()
+    click.echo(f"⚙️  Configuration:")
+    click.echo(f"   Config file: {config.config_path}")
+
+    project_config = config.get_project_config(project_root)
+    if project_config:
+        click.echo(f"   Status: ✓ Registered")
+        click.echo(f"   Database: {project_config['database']}")
+        if 'jsonl_path' in project_config:
+            click.echo(f"   JSONL path: {project_config['jsonl_path']}")
+    else:
+        click.echo(f"   Status: ✗ Not registered")
+        click.echo(f"   (Will prompt on next command)")
+    click.echo()
+
+    # Current workspace
+    try:
+        storage = get_storage()
+        click.echo(f"💾 Current Workspace:")
+        click.echo(f"   Location: {storage.workspace_dir}")
+        click.echo(f"   Database: {storage.db_file}")
+
+        # Check if database exists and has entries
+        if storage.db_file.exists():
+            entries = storage.get_entries(limit=1)
+            entry_count_query = storage._get_connection()
+            cursor = entry_count_query.execute("SELECT COUNT(*) FROM entries")
+            count = cursor.fetchone()[0]
+            entry_count_query.close()
+            click.echo(f"   Entries: {count}")
+        else:
+            click.echo(f"   Status: New (database will be created)")
+    except Exception as e:
+        click.echo(f"💾 Current Workspace: Error - {e}")
+
+    click.echo()
+
+    # All registered projects
+    projects = config.list_projects()
+    if projects:
+        click.echo(f"📋 All Registered Projects ({len(projects)}):")
+        for i, (proj_path, proj_config) in enumerate(projects.items(), 1):
+            marker = "→" if Path(proj_path) == project_root else " "
+            click.echo(f"   {marker} {i}. {proj_path}")
+            click.echo(f"      Database: {proj_config['database']}")
+    else:
+        click.echo(f"📋 No projects registered yet")
+
+    click.echo()
 
 
 def _format_time_ago(dt: datetime) -> str:
