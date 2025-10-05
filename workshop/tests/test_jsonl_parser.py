@@ -734,8 +734,11 @@ def test_llm_extraction_fallback_on_error(temp_jsonl):
     assert decisions[0].confidence == 0.7  # Pattern matching confidence
 
 
-def test_llm_extraction_without_client():
+def test_llm_extraction_without_client(monkeypatch):
     """Test that LLM extraction falls back when no client is available"""
+    # Clear environment variable to ensure no client is created
+    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+
     parser = JSONLParser()  # No API key
     assert parser.anthropic_client is None
 
