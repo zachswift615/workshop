@@ -5,6 +5,40 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2025-01-05
+
+### Added
+- **LM Studio support**: Local LLM extraction as FREE alternative to Anthropic API
+  - New `--llm-local` flag for using local LLM servers (LM Studio, etc.)
+  - New `--llm-endpoint` option to customize local LLM endpoint (default: http://localhost:1234/v1)
+  - OpenAI-compatible client integration for local models
+  - Automatic server detection with helpful setup instructions if not running
+  - Cost display shows "FREE (running locally)" for local LLM extraction
+  - Recommended models documented: Mistral 7B, Llama 3.1 8B, Qwen 2.5 7B
+  - Same extraction quality as API with good local models
+- **Test coverage**: 10 new comprehensive unit tests for LLM extraction
+  - API client initialization tests
+  - Mocked LLM response handling
+  - Fallback behavior verification
+  - Error handling (API errors, malformed JSON)
+  - Edge cases (short messages, missing dependencies)
+
+### Fixed
+- **Critical workspace isolation bug**: Non-git projects under home directory were incorrectly using `~/.workshop` instead of creating local `.workshop` directory
+  - Caused all projects under home to share global database, breaking per-project isolation
+  - Fixed by stopping upward directory search before reaching home directory
+  - Each project now gets proper isolation (git repos: `.workshop` at git root, non-git: `.workshop` in current directory)
+- **Cost estimation bug**: Import cost estimation was using Sonnet pricing ($3/M input, $15/M output) instead of Haiku pricing ($0.25/M input, $1.25/M output)
+  - This caused estimates to be 12x too high (e.g., $580 instead of $48)
+  - Now correctly shows Haiku pricing for `--llm` flag
+
+### Changed
+- Users now have 3 extraction options for JSONL import:
+  1. Pattern matching (free, default, good quality)
+  2. Anthropic API with `--llm` (paid, excellent quality, ~$48 for 18k messages)
+  3. **LM Studio with `--llm-local` (FREE, excellent quality, offline, private)**
+- Updated optional dependencies: added `openai>=1.0.0` to `llm` extras
+
 ## [1.0.4] - 2025-01-04
 
 ### Improved
@@ -272,6 +306,12 @@ Workshop v1.0.0 marks the transition from prototype to production-ready software
 - CLI with commands: note, decision, gotcha, preference, goal, blocker, next, search, context, recent
 - Timestamp formatting (relative and absolute)
 
+[1.0.5]: https://github.com/zachswift615/workshop/compare/v1.0.4...v1.0.5
+[1.0.4]: https://github.com/zachswift615/workshop/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/zachswift615/workshop/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/zachswift615/workshop/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/zachswift615/workshop/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/zachswift615/workshop/compare/v0.3.4...v1.0.0
 [0.3.4]: https://github.com/zachswift615/workshop/compare/v0.3.0...v0.3.4
 [0.3.3]: https://github.com/zachswift615/workshop/compare/v0.3.0...v0.3.3
 [0.3.2]: https://github.com/zachswift615/workshop/compare/v0.3.1...v0.3.2
