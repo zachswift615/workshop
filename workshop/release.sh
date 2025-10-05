@@ -2,6 +2,16 @@
 
 # Workshop Release Script
 # Automates version bumping, changelog updates, tagging, and PyPI publishing
+#
+# Usage:
+#   ./release.sh [patch|minor|major|VERSION]
+#
+# Examples:
+#   ./release.sh patch      # 1.0.5 -> 1.0.6
+#   ./release.sh minor      # 1.0.5 -> 1.1.0
+#   ./release.sh major      # 1.0.5 -> 2.0.0
+#   ./release.sh 1.2.3      # Set to specific version
+#   ./release.sh            # Interactive mode
 
 set -e  # Exit on error
 
@@ -24,41 +34,64 @@ if [[ -n $(git status --porcelain) ]]; then
     exit 1
 fi
 
-# Ask for version bump type
-echo -e "${BLUE}Select version bump type:${NC}"
-echo "1) patch (x.x.N) - bug fixes"
-echo "2) minor (x.N.0) - new features, backward compatible"
-echo "3) major (N.0.0) - breaking changes"
-echo "4) custom - specify exact version"
-read -p "Enter choice [1-4]: " bump_type
+# Parse command line argument
+BUMP_TYPE="${1:-}"
 
 # Calculate new version
 IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
 
-case $bump_type in
-    1)
-        NEW_VERSION="$major.$minor.$((patch + 1))"
-        ;;
-    2)
-        NEW_VERSION="$major.$((minor + 1)).0"
-        ;;
-    3)
-        NEW_VERSION="$((major + 1)).0.0"
-        ;;
-    4)
-        read -p "Enter new version: " NEW_VERSION
-        ;;
-    *)
-        echo -e "${RED}Invalid choice${NC}"
-        exit 1
-        ;;
-esac
+if [[ -n "$BUMP_TYPE" ]]; then
+    # Non-interactive mode with parameter
+    case $BUMP_TYPE in
+        patch)
+            NEW_VERSION="$major.$minor.$((patch + 1))"
+            ;;
+        minor)
+            NEW_VERSION="$major.$((minor + 1)).0"
+            ;;
+        major)
+            NEW_VERSION="$((major + 1)).0.0"
+            ;;
+        *)
+            # Assume it's a specific version number
+            NEW_VERSION="$BUMP_TYPE"
+            ;;
+    esac
+    echo -e "${GREEN}Releasing version: ${NEW_VERSION}${NC}\n"
+else
+    # Interactive mode
+    echo -e "${BLUE}Select version bump type:${NC}"
+    echo "1) patch (x.x.N) - bug fixes"
+    echo "2) minor (x.N.0) - new features, backward compatible"
+    echo "3) major (N.0.0) - breaking changes"
+    echo "4) custom - specify exact version"
+    read -p "Enter choice [1-4]: " bump_type
 
-echo -e "\n${GREEN}New version will be: ${NEW_VERSION}${NC}"
-read -p "Continue? [y/N]: " confirm
-if [[ ! $confirm =~ ^[Yy]$ ]]; then
-    echo "Aborted."
-    exit 0
+    case $bump_type in
+        1)
+            NEW_VERSION="$major.$minor.$((patch + 1))"
+            ;;
+        2)
+            NEW_VERSION="$major.$((minor + 1)).0"
+            ;;
+        3)
+            NEW_VERSION="$((major + 1)).0.0"
+            ;;
+        4)
+            read -p "Enter new version: " NEW_VERSION
+            ;;
+        *)
+            echo -e "${RED}Invalid choice${NC}"
+            exit 1
+            ;;
+    esac
+
+    echo -e "\n${GREEN}New version will be: ${NEW_VERSION}${NC}"
+    read -p "Continue? [y/N]: " confirm
+    if [[ ! $confirm =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        exit 0
+    fi
 fi
 
 # Run tests before proceeding

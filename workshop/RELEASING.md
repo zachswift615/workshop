@@ -24,7 +24,14 @@ Or add them to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) for persistenc
 The `release.sh` script automates the entire release process:
 
 ```bash
+# Interactive mode (prompts for version type)
 ./release.sh
+
+# Non-interactive mode (specify version type)
+./release.sh patch      # 1.0.5 -> 1.0.6
+./release.sh minor      # 1.0.5 -> 1.1.0
+./release.sh major      # 1.0.5 -> 2.0.0
+./release.sh 1.2.3      # Set specific version
 ```
 
 ### What it does:
