@@ -691,6 +691,7 @@ def test_llm_extraction_with_valid_response(temp_jsonl):
     # Create parser with mocked client
     parser = JSONLParser(api_key='test-key')
     parser.anthropic_client = mock_client
+    parser.llm_type = 'anthropic'  # Set type for mocked client
 
     # Test message
     message = create_message("assistant", "We decided to use SQLite because it provides FTS5 search.")
@@ -719,6 +720,7 @@ def test_llm_extraction_fallback_on_error(temp_jsonl):
 
     parser = JSONLParser(api_key='test-key')
     parser.anthropic_client = mock_client
+    parser.llm_type = 'anthropic'  # Set type for mocked client
 
     # Message with pattern-matchable content (must be >50 chars for LLM processing)
     message = create_message("assistant", "We decided to use PostgreSQL for the database because it provides excellent reliability and performance for our use case.")
@@ -750,6 +752,7 @@ def test_llm_extraction_skips_short_messages():
     mock_client = Mock()
     parser = JSONLParser(api_key='test-key')
     parser.anthropic_client = mock_client
+    parser.llm_type = 'anthropic'  # Set type for mocked client
 
     # Very short message
     message = create_message("assistant", "OK")
@@ -769,6 +772,7 @@ def test_llm_extraction_with_malformed_json():
 
     parser = JSONLParser(api_key='test-key')
     parser.anthropic_client = mock_client
+    parser.llm_type = 'anthropic'  # Set type for mocked client
 
     # Message must be >50 chars for LLM processing
     message = create_message("assistant", "We decided to use MongoDB for the document store because it handles unstructured data very well.")
@@ -802,6 +806,7 @@ def test_parse_jsonl_with_llm_flag(temp_jsonl):
 
     parser = JSONLParser(api_key='test-key')
     parser.anthropic_client = mock_client
+    parser.llm_type = 'anthropic'  # Set type for mocked client
 
     # Parse with LLM
     result = parser.parse_jsonl_file(temp_jsonl, use_llm=True)

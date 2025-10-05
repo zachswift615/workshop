@@ -7,6 +7,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
 
+from . import __version__
 from .storage_sqlite import WorkshopStorageSQLite
 from .migrate import should_migrate, migrate_json_to_sqlite
 from .display import (
@@ -48,7 +49,7 @@ def get_storage() -> WorkshopStorageSQLite:
 
 @click.group()
 @click.option('--workspace', type=click.Path(), help='Custom workspace directory')
-@click.version_option(version='0.3.0', prog_name='Workshop')
+@click.version_option(version=__version__, prog_name='Workshop')
 def main(workspace):
     """
     Workshop - Persistent context tool for Claude Code.
