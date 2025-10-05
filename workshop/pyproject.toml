@@ -57,6 +57,9 @@ llm = [
     "anthropic>=0.18.0",
     "openai>=1.0.0",
 ]
+cloud = [
+    "workshop-client>=0.1.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/zachswift615/workshop"
