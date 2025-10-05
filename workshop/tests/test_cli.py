@@ -133,6 +133,9 @@ def test_changes_to_project_root(runner, temp_workspace, monkeypatch):
     nested_dir = temp_workspace / "deep" / "nested" / "dir"
     nested_dir.mkdir(parents=True)
 
+    # Set WORKSHOP_DIR to avoid interactive prompt
+    monkeypatch.setenv('WORKSHOP_DIR', str(temp_workspace / '.workshop'))
+
     # Change to nested directory
     monkeypatch.chdir(nested_dir)
     assert Path.cwd().resolve() == nested_dir.resolve()
