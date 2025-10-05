@@ -52,12 +52,18 @@ class WorkshopStorageSQLite:
 
         current = Path.cwd()
         git_root = None
+        home_dir = Path.home()
 
         # Search upward for existing .workshop/ or git root
+        # Stop before home directory to avoid using global workspace
         for parent in [current] + list(current.parents):
+            # Stop at home directory - don't include it in search
+            if parent == home_dir:
+                break
+
             workshop_dir = parent / ".workshop"
 
-            # If .workshop exists, use it regardless of git
+            # If .workshop exists, use it (but we've excluded ~/.workshop above)
             if workshop_dir.exists():
                 return workshop_dir
 

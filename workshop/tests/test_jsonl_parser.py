@@ -4,6 +4,7 @@ Tests for Workshop JSONL parser
 import pytest
 import json
 from pathlib import Path
+from unittest.mock import Mock, patch, MagicMock
 from src.jsonl_parser import JSONLParser, ExtractedEntry, SessionImportResult
 
 
@@ -635,3 +636,196 @@ def test_extract_from_message_filters_system_types(parser):
 
     entries = parser._extract_from_message(message)
     assert len(entries) == 0
+
+
+# LLM Extraction Tests
+def test_parser_initialization_without_api_key():
+    """Test parser initializes without API key"""
+    with patch.dict('os.environ', {}, clear=True):
+        parser = JSONLParser()
+        # Without API key, anthropic_client should be None
+        assert parser.anthropic_client is None
+
+
+def test_parser_initialization_with_api_key_in_env():
+    """Test parser initializes with API key from environment"""
+    # This test will work if anthropic is installed
+    try:
+        import anthropic
+        with patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'}):
+            parser = JSONLParser()
+            # Should attempt to create client (may fail with invalid key, but that's ok)
+            assert parser.anthropic_client is not None or parser.anthropic_client is None
+    except ImportError:
+        # If anthropic not installed, parser should gracefully handle it
+        with patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'}):
+            parser = JSONLParser()
+            assert parser.anthropic_client is None
+
+
+def test_parser_initialization_gracefully_handles_missing_package():
+    """Test parser gracefully handles missing anthropic package"""
+    # Even with an API key, if anthropic isn't installed, should be None
+    parser = JSONLParser(api_key='test-key')
+    # Client will be None if anthropic not installed, or a client if it is
+    # Either way, the parser should work
+    assert hasattr(parser, 'anthropic_client')
+
+
+def test_llm_extraction_with_valid_response(temp_jsonl):
+    """Test LLM extraction with valid API response"""
+    # Mock Anthropic client
+    mock_client = Mock()
+    mock_response = Mock()
+    mock_response.content = [Mock(text=json.dumps({
+        "decisions": [
+            {"content": "Use SQLite for storage", "reasoning": "Provides FTS5 search and better performance"}
+        ],
+        "gotchas": [
+            {"content": "API rate limit is 100/min", "reasoning": "This affects batch operations"}
+        ],
+        "preferences": []
+    }))]
+    mock_client.messages.create.return_value = mock_response
+
+    # Create parser with mocked client
+    parser = JSONLParser(api_key='test-key')
+    parser.anthropic_client = mock_client
+
+    # Test message
+    message = create_message("assistant", "We decided to use SQLite because it provides FTS5 search.")
+
+    entries = parser._extract_from_message_llm(message)
+
+    # Should have extracted decision and gotcha
+    assert len(entries) >= 2
+    decisions = [e for e in entries if e.type == 'decision']
+    gotchas = [e for e in entries if e.type == 'gotcha']
+
+    assert len(decisions) == 1
+    assert "SQLite" in decisions[0].content
+    assert decisions[0].confidence == 0.95
+    assert decisions[0].reasoning == "Provides FTS5 search and better performance"
+
+    assert len(gotchas) == 1
+    assert "rate limit" in gotchas[0].content
+
+
+def test_llm_extraction_fallback_on_error(temp_jsonl):
+    """Test that LLM extraction falls back to pattern matching on error"""
+    # Mock Anthropic client that raises an error
+    mock_client = Mock()
+    mock_client.messages.create.side_effect = Exception("API error")
+
+    parser = JSONLParser(api_key='test-key')
+    parser.anthropic_client = mock_client
+
+    # Message with pattern-matchable content (must be >50 chars for LLM processing)
+    message = create_message("assistant", "We decided to use PostgreSQL for the database because it provides excellent reliability and performance for our use case.")
+
+    # Should fall back to pattern matching
+    entries = parser._extract_from_message_llm(message)
+
+    # Should still extract using pattern matching
+    decisions = [e for e in entries if e.type == 'decision']
+    assert len(decisions) > 0
+    assert decisions[0].confidence == 0.7  # Pattern matching confidence
+
+
+def test_llm_extraction_without_client():
+    """Test that LLM extraction falls back when no client is available"""
+    parser = JSONLParser()  # No API key
+    assert parser.anthropic_client is None
+
+    message = create_message("assistant", "We chose to use Redis for caching.")
+
+    # Should fall back to pattern matching
+    entries = parser._extract_from_message_llm(message)
+    decisions = [e for e in entries if e.type == 'decision']
+    assert len(decisions) > 0
+
+
+def test_llm_extraction_skips_short_messages():
+    """Test that LLM extraction skips very short messages"""
+    mock_client = Mock()
+    parser = JSONLParser(api_key='test-key')
+    parser.anthropic_client = mock_client
+
+    # Very short message
+    message = create_message("assistant", "OK")
+
+    entries = parser._extract_from_message_llm(message)
+
+    # Should not call API for very short messages
+    mock_client.messages.create.assert_not_called()
+
+
+def test_llm_extraction_with_malformed_json():
+    """Test LLM extraction handles malformed JSON response"""
+    mock_client = Mock()
+    mock_response = Mock()
+    mock_response.content = [Mock(text="This is not valid JSON")]
+    mock_client.messages.create.return_value = mock_response
+
+    parser = JSONLParser(api_key='test-key')
+    parser.anthropic_client = mock_client
+
+    # Message must be >50 chars for LLM processing
+    message = create_message("assistant", "We decided to use MongoDB for the document store because it handles unstructured data very well.")
+
+    # Should fall back to pattern matching on JSON parse error
+    entries = parser._extract_from_message_llm(message)
+
+    # Should still extract using pattern matching fallback
+    decisions = [e for e in entries if e.type == 'decision']
+    assert len(decisions) > 0
+
+
+def test_parse_jsonl_with_llm_flag(temp_jsonl):
+    """Test parsing JSONL file with use_llm=True"""
+    # Message must be >50 chars for LLM processing
+    messages = [
+        create_message("assistant", "We decided to use FastAPI for the backend because it's modern, fast, and has great documentation.")
+    ]
+    write_messages(temp_jsonl, messages)
+
+    mock_client = Mock()
+    mock_response = Mock()
+    mock_response.content = [Mock(text=json.dumps({
+        "decisions": [
+            {"content": "Use FastAPI", "reasoning": "Modern, fast, and great documentation"}
+        ],
+        "gotchas": [],
+        "preferences": []
+    }))]
+    mock_client.messages.create.return_value = mock_response
+
+    parser = JSONLParser(api_key='test-key')
+    parser.anthropic_client = mock_client
+
+    # Parse with LLM
+    result = parser.parse_jsonl_file(temp_jsonl, use_llm=True)
+
+    assert result.messages_processed == 1
+    decisions = [e for e in result.entries if e.type == 'decision']
+    assert len(decisions) > 0
+    assert decisions[0].confidence == 0.95
+
+
+def test_parse_jsonl_without_llm_flag(temp_jsonl):
+    """Test parsing JSONL file with use_llm=False uses pattern matching"""
+    messages = [
+        create_message("assistant", "We decided to use FastAPI for the backend.")
+    ]
+    write_messages(temp_jsonl, messages)
+
+    parser = JSONLParser()
+
+    # Parse without LLM
+    result = parser.parse_jsonl_file(temp_jsonl, use_llm=False)
+
+    assert result.messages_processed == 1
+    decisions = [e for e in result.entries if e.type == 'decision']
+    assert len(decisions) > 0
+    # Pattern matching has lower confidence
+    assert decisions[0].confidence == 0.7

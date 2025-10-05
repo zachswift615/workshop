@@ -4,6 +4,7 @@ JSONL Parser for Workshop - Extract knowledge from Claude Code session transcrip
 import json
 import re
 import hashlib
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
@@ -74,15 +75,51 @@ class JSONLParser:
         r'style:',
     ]
 
-    def __init__(self):
+    def __init__(self, api_key: Optional[str] = None, llm_endpoint: Optional[str] = None):
         self.decision_pattern = re.compile('|'.join(self.DECISION_KEYWORDS), re.IGNORECASE)
         self.gotcha_pattern = re.compile('|'.join(self.GOTCHA_KEYWORDS), re.IGNORECASE)
         self.preference_pattern = re.compile('|'.join(self.PREFERENCE_KEYWORDS), re.IGNORECASE)
 
+        # LLM support
+        self.anthropic_client = None
+        self.openai_client = None
+        self.llm_type = None
+
+        # Local LM Studio endpoint
+        if llm_endpoint:
+            try:
+                import openai
+                self.openai_client = openai.OpenAI(
+                    base_url=llm_endpoint,
+                    api_key="not-needed"  # LM Studio doesn't require API key
+                )
+                self.llm_type = 'local'
+            except ImportError:
+                pass
+        # Anthropic API
+        elif api_key or os.getenv('ANTHROPIC_API_KEY'):
+            try:
+                import anthropic
+                self.anthropic_client = anthropic.Anthropic(api_key=api_key or os.getenv('ANTHROPIC_API_KEY'))
+                self.llm_type = 'anthropic'
+            except ImportError:
+                pass  # LLM features not available without anthropic package
+
+    @staticmethod
+    def check_local_llm_server(endpoint: str = "http://localhost:1234") -> bool:
+        """Check if local LLM server (like LM Studio) is running"""
+        try:
+            import requests
+            response = requests.get(f"{endpoint}/v1/models", timeout=2)
+            return response.status_code == 200
+        except:
+            return False
+
     def parse_jsonl_file(
         self,
         jsonl_path: Path,
-        start_from_uuid: Optional[str] = None
+        start_from_uuid: Optional[str] = None,
+        use_llm: bool = False
     ) -> SessionImportResult:
         """
         Parse a JSONL file and extract workshop entries.
@@ -90,6 +127,7 @@ class JSONLParser:
         Args:
             jsonl_path: Path to JSONL file
             start_from_uuid: If provided, only process messages after this UUID
+            use_llm: If True, use LLM extraction instead of pattern matching
 
         Returns:
             SessionImportResult with extracted entries
@@ -117,8 +155,11 @@ class JSONLParser:
         entries = []
         seen_content_hashes = set()
 
+        # Choose extraction method
+        extract_fn = self._extract_from_message_llm if use_llm else self._extract_from_message
+
         for msg in messages:
-            msg_entries = self._extract_from_message(msg)
+            msg_entries = extract_fn(msg)
 
             # Deduplicate by content hash
             for entry in msg_entries:
@@ -424,6 +465,144 @@ class JSONLParser:
         if msg_type == 'user':
             preferences = self._extract_preferences(content, timestamp, uuid)
             entries.extend(preferences)
+
+        return entries
+
+    def _extract_from_message_llm(self, message: Dict) -> List[ExtractedEntry]:
+        """
+        Extract workshop entries from a message using LLM analysis.
+        Supports both Anthropic API and local LLM servers (LM Studio).
+
+        Args:
+            message: JSONL message dictionary
+
+        Returns:
+            List of extracted entries with high-quality reasoning
+        """
+        if not self.anthropic_client and not self.openai_client:
+            # Fallback to pattern matching if no LLM available
+            return self._extract_from_message(message)
+
+        entries = []
+
+        # Only extract from user and assistant messages
+        msg_type = message.get('type')
+        if msg_type not in ['user', 'assistant']:
+            return entries
+
+        timestamp = message.get('timestamp', datetime.now().isoformat())
+        uuid = message.get('uuid', '')
+
+        # Get message content
+        content = self._get_message_content(message)
+        if not content or len(content) < 50:  # Skip very short messages
+            return entries
+
+        # Build LLM prompt for extraction
+        prompt = f"""Analyze this conversation message from a Claude Code session and extract structured insights.
+
+Message: {content}
+
+Extract the following types of information:
+
+1. **Decisions**: Technical or architectural decisions that were made
+   - Include what was decided
+   - Include WHY it was decided (reasoning, trade-offs)
+   - Include alternatives considered if mentioned
+
+2. **Gotchas/Constraints**: Problems, bugs, or important constraints discovered
+   - What the issue/constraint is
+   - Why it matters or how it was discovered
+
+3. **Preferences**: User's stated preferences or patterns
+   - What the preference is
+   - Any reasoning given
+
+Return ONLY valid JSON in this exact format:
+{{
+  "decisions": [
+    {{"content": "brief decision", "reasoning": "detailed explanation including why, trade-offs, alternatives"}},
+  ],
+  "gotchas": [
+    {{"content": "the gotcha/constraint", "reasoning": "why this matters or context"}},
+  ],
+  "preferences": [
+    {{"content": "the preference", "reasoning": "any explanation given"}},
+  ]
+}}
+
+If a category has no entries, use an empty array. Do NOT include any text outside the JSON object."""
+
+        try:
+            # Call appropriate LLM API
+            if self.llm_type == 'anthropic':
+                # Anthropic API (Claude Haiku)
+                response = self.anthropic_client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=2000,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                llm_text = response.content[0].text.strip()
+            elif self.llm_type == 'local':
+                # OpenAI-compatible API (LM Studio)
+                response = self.openai_client.chat.completions.create(
+                    model="local-model",  # LM Studio uses whatever model is loaded
+                    max_tokens=2000,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.7
+                )
+                llm_text = response.choices[0].message.content.strip()
+            else:
+                # No client available
+                return self._extract_from_message(message)
+
+            # Extract JSON from response (in case LLM adds surrounding text)
+            json_match = re.search(r'\{[\s\S]*\}', llm_text)
+            if not json_match:
+                # No JSON found in response, fall back to pattern matching
+                print("LLM response contained no JSON, falling back to pattern matching")
+                return self._extract_from_message(message)
+
+            llm_json = json.loads(json_match.group())
+
+            # Create entries from LLM extraction
+            for decision in llm_json.get('decisions', []):
+                if decision.get('content'):
+                    entries.append(ExtractedEntry(
+                        type='decision',
+                        content=decision['content'],
+                        reasoning=decision.get('reasoning'),
+                        confidence=0.95,  # High confidence for LLM extraction
+                        timestamp=timestamp,
+                        source_uuid=uuid
+                    ))
+
+            for gotcha in llm_json.get('gotchas', []):
+                if gotcha.get('content'):
+                    entries.append(ExtractedEntry(
+                        type='gotcha',
+                        content=gotcha['content'],
+                        reasoning=gotcha.get('reasoning'),
+                        confidence=0.95,
+                        timestamp=timestamp,
+                        source_uuid=uuid
+                    ))
+
+            for pref in llm_json.get('preferences', []):
+                if pref.get('content'):
+                    entries.append(ExtractedEntry(
+                        type='preference',
+                        content=pref['content'],
+                        reasoning=pref.get('reasoning'),
+                        confidence=0.95,
+                        timestamp=timestamp,
+                        source_uuid=uuid
+                    ))
+
+        except Exception as e:
+            # If LLM extraction fails, fallback to pattern matching
+            print(f"LLM extraction failed: {e}, falling back to pattern matching")
+            return self._extract_from_message(message)
 
         return entries
 

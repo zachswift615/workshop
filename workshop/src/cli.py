@@ -885,7 +885,10 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 @click.option('--interactive', '-i', is_flag=True, help='Interactively review each extraction')
 @click.option('--since', help='Only import after date (YYYY-MM-DD or "last-import")')
 @click.option('--force', is_flag=True, help='Re-import even if already processed')
-def import_sessions(files, execute, interactive, since, force):
+@click.option('--llm', is_flag=True, help='Use LLM extraction for better quality (requires ANTHROPIC_API_KEY)')
+@click.option('--llm-local', is_flag=True, help='Use local LLM (LM Studio) - FREE, no API key needed')
+@click.option('--llm-endpoint', default='http://localhost:1234/v1', help='Local LLM endpoint (default: http://localhost:1234/v1)')
+def import_sessions(files, execute, interactive, since, force, llm, llm_local, llm_endpoint):
     """
     Import historical sessions from JSONL transcripts.
 
@@ -903,8 +906,45 @@ def import_sessions(files, execute, interactive, since, force):
     from datetime import datetime
     from pathlib import Path
     import glob
+    import os
+    import json
 
-    parser = JSONLParser()
+    # Check for LLM support
+    use_llm = llm or llm_local
+
+    # Local LLM (LM Studio)
+    if llm_local:
+        # Check if local server is running
+        if not JSONLParser.check_local_llm_server(llm_endpoint):
+            error(f"Local LLM server not running at {llm_endpoint}")
+            click.echo("\n💡 LM Studio setup:")
+            click.echo("   1. Download LM Studio: https://lmstudio.ai")
+            click.echo("   2. Load a model (recommended: Mistral 7B, Llama 3.1 8B, or Qwen 2.5 7B)")
+            click.echo("   3. Start the server (defaults to http://localhost:1234)")
+            click.echo("   4. Run: workshop import --llm-local --execute")
+            click.echo("\n   Or use pattern matching: workshop import --execute")
+            return
+
+        parser = JSONLParser(llm_endpoint=llm_endpoint)
+        click.echo(f"\n🖥️  Using local LLM at {llm_endpoint} (FREE, no API costs)\n")
+
+    # Anthropic API
+    elif llm:
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        if not api_key:
+            error("--llm flag requires ANTHROPIC_API_KEY environment variable")
+            click.echo("\n💡 Set your API key: export ANTHROPIC_API_KEY=your-key")
+            click.echo("   Or use local LLM: workshop import --llm-local --execute")
+            click.echo("   Or use pattern matching: workshop import --execute")
+            return
+
+        parser = JSONLParser(api_key=api_key)
+        click.echo("\n🤖 Using LLM extraction (high quality, slower)\n")
+
+    # Pattern matching (default)
+    else:
+        parser = JSONLParser()
+
     store = WorkshopStorageSQLite()
 
     # Determine which files to import
@@ -974,6 +1014,46 @@ def import_sessions(files, execute, interactive, since, force):
 
     click.echo(f"\n📊 Found {len(jsonl_files)} JSONL file{'s' if len(jsonl_files) != 1 else ''}\n")
 
+    # Estimate cost for LLM extraction (or show FREE for local)
+    if llm or llm_local:
+        total_messages = 0
+        for jsonl_path in jsonl_files:
+            try:
+                with open(jsonl_path, 'r') as f:
+                    messages = [json.loads(line) for line in f if line.strip()]
+                    # Count user and assistant messages (what we extract from)
+                    total_messages += sum(1 for m in messages if m.get('type') in ['user', 'assistant'])
+            except:
+                pass
+
+        if llm_local:
+            # Local LLM - no cost
+            click.echo(f"💰 Cost estimate for local LLM extraction:")
+            click.echo(f"   • ~{total_messages} messages to analyze")
+            click.echo(f"   • Cost: FREE (running locally)")
+        else:
+            # Anthropic API - calculate cost
+            # Estimate tokens: ~500 tokens per message average (prompt + response)
+            estimated_tokens = total_messages * 500
+            # Claude 3 Haiku pricing: $0.25 per million input tokens, $1.25 per million output
+            # Assume 2000 output tokens per message on average
+            input_cost = (estimated_tokens / 1_000_000) * 0.25
+            output_cost = (total_messages * 2000 / 1_000_000) * 1.25
+            total_cost = input_cost + output_cost
+
+            click.echo(f"💰 Cost estimate for LLM extraction:")
+            click.echo(f"   • ~{total_messages} messages to analyze")
+            click.echo(f"   • ~{estimated_tokens:,} input tokens")
+            click.echo(f"   • Estimated cost: ${total_cost:.2f}")
+
+        if not execute:
+            click.echo(f"\n   This is a dry-run. Use --execute to actually import.\n")
+        else:
+            if not click.confirm("\n   Proceed with LLM extraction?"):
+                click.echo("   Cancelled.")
+                return
+            click.echo()
+
     # Process each file
     total_entries = []
     files_processed = 0
@@ -1000,7 +1080,7 @@ def import_sessions(files, execute, interactive, since, force):
 
         # Parse JSONL file
         try:
-            result = parser.parse_jsonl_file(jsonl_path, start_from_uuid=start_uuid)
+            result = parser.parse_jsonl_file(jsonl_path, start_from_uuid=start_uuid, use_llm=use_llm)
         except Exception as e:
             error(f"  ✗ Failed to parse: {e}")
             continue
