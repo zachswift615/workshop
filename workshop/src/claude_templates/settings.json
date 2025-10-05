@@ -9,6 +9,15 @@
             "command": "${CLAUDE_PROJECT_DIR}/.claude/workshop-session-start.sh"
           }
         ]
+      },
+      {
+        "source": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/workshop-session-start.sh"
+          }
+        ]
       }
     ],
     "SessionEnd": [
