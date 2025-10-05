@@ -22,8 +22,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Get current version from __init__.py
-CURRENT_VERSION=$(grep -E "^__version__ = " src/__init__.py | cut -d'"' -f2)
+# Determine script location and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Get current version from __init__.py (in workshop subdirectory)
+CURRENT_VERSION=$(grep -E "^__version__ = " workshop/src/__init__.py | cut -d'"' -f2)
 
 echo -e "${BLUE}📦 Workshop Release Automation${NC}"
 echo -e "Current version: ${YELLOW}${CURRENT_VERSION}${NC}\n"
@@ -94,9 +98,9 @@ else
     fi
 fi
 
-# Run tests before proceeding
+# Run tests before proceeding (in workshop subdirectory)
 echo -e "\n${BLUE}🧪 Running tests...${NC}"
-if ! pytest; then
+if ! (cd workshop && pytest); then
     echo -e "${RED}❌ Tests failed. Aborting release.${NC}"
     exit 1
 fi
@@ -146,52 +150,55 @@ if [[ -n "$OTHER" ]]; then
     CHANGELOG_ENTRY+="### Other\n${OTHER}\n\n"
 fi
 
+# CHANGELOG is in root directory
+CHANGELOG="CHANGELOG.md"
+
 # Find the line number where to insert (after the header, before first version)
-INSERT_LINE=$(grep -n "^## \[" CHANGELOG.md | head -1 | cut -d: -f1)
+INSERT_LINE=$(grep -n "^## \[" "$CHANGELOG" | head -1 | cut -d: -f1)
 if [[ -z "$INSERT_LINE" ]]; then
     # No existing versions, insert after header
-    INSERT_LINE=$(grep -n "^# Changelog" CHANGELOG.md | cut -d: -f1)
+    INSERT_LINE=$(grep -n "^# Changelog" "$CHANGELOG" | cut -d: -f1)
     INSERT_LINE=$((INSERT_LINE + 4))  # After header and description
 fi
 
 # Create temp file with new changelog
 {
-    head -n $((INSERT_LINE - 1)) CHANGELOG.md
+    head -n $((INSERT_LINE - 1)) "$CHANGELOG"
     echo -e "$CHANGELOG_ENTRY"
-    tail -n +$INSERT_LINE CHANGELOG.md
-} > CHANGELOG.md.tmp
+    tail -n +$INSERT_LINE "$CHANGELOG"
+} > "${CHANGELOG}.tmp"
 
 # Add comparison link at the bottom
 if [[ -n "$LAST_TAG" ]]; then
     # Update comparison links
-    sed -i.bak "s|\[Unreleased\].*|[${NEW_VERSION}]: https://github.com/zachswift615/workshop/compare/${LAST_TAG}...v${NEW_VERSION}|" CHANGELOG.md.tmp
+    sed -i.bak "s|\[Unreleased\].*|[${NEW_VERSION}]: https://github.com/zachswift615/workshop/compare/${LAST_TAG}...v${NEW_VERSION}|" "${CHANGELOG}.tmp"
     # Add new comparison link before the last one
-    LAST_LINK_LINE=$(grep -n "^\[.*\]: https" CHANGELOG.md.tmp | tail -1 | cut -d: -f1)
+    LAST_LINK_LINE=$(grep -n "^\[.*\]: https" "${CHANGELOG}.tmp" | tail -1 | cut -d: -f1)
     {
-        head -n $LAST_LINK_LINE CHANGELOG.md.tmp
+        head -n $LAST_LINK_LINE "${CHANGELOG}.tmp"
         echo "[${NEW_VERSION}]: https://github.com/zachswift615/workshop/compare/${LAST_TAG}...v${NEW_VERSION}"
-        tail -n +$((LAST_LINK_LINE + 1)) CHANGELOG.md.tmp
-    } > CHANGELOG.md.tmp2
-    mv CHANGELOG.md.tmp2 CHANGELOG.md.tmp
+        tail -n +$((LAST_LINK_LINE + 1)) "${CHANGELOG}.tmp"
+    } > "${CHANGELOG}.tmp2"
+    mv "${CHANGELOG}.tmp2" "${CHANGELOG}.tmp"
 fi
 
-mv CHANGELOG.md.tmp CHANGELOG.md
-rm -f CHANGELOG.md.bak
+mv "${CHANGELOG}.tmp" "$CHANGELOG"
+rm -f "${CHANGELOG}.bak"
 
 echo -e "\n${GREEN}✓ Updated CHANGELOG.md${NC}"
 
-# Update version in __init__.py
-sed -i.bak "s/__version__ = \".*\"/__version__ = \"${NEW_VERSION}\"/" src/__init__.py
-rm -f src/__init__.py.bak
-echo -e "${GREEN}✓ Updated version in __init__.py${NC}"
+# Update version in __init__.py (in workshop subdirectory)
+sed -i.bak "s/__version__ = \".*\"/__version__ = \"${NEW_VERSION}\"/" workshop/src/__init__.py
+rm -f workshop/src/__init__.py.bak
+echo -e "${GREEN}✓ Updated version in workshop/src/__init__.py${NC}"
 
-# Update version in pyproject.toml
-sed -i.bak "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" pyproject.toml
-rm -f pyproject.toml.bak
-echo -e "${GREEN}✓ Updated version in pyproject.toml${NC}"
+# Update version in pyproject.toml (in workshop subdirectory)
+sed -i.bak "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" workshop/pyproject.toml
+rm -f workshop/pyproject.toml.bak
+echo -e "${GREEN}✓ Updated version in workshop/pyproject.toml${NC}"
 
 # Commit changes
-git add CHANGELOG.md src/__init__.py pyproject.toml
+git add CHANGELOG.md workshop/src/__init__.py workshop/pyproject.toml
 git commit -m "Release v${NEW_VERSION}
 
 $(echo -e "$CHANGELOG_ENTRY" | sed 's/^## \[.*\] - .*$//' | sed 's/^### //' | sed '/^$/d')
@@ -211,19 +218,19 @@ git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
 git push origin "v${NEW_VERSION}"
 echo -e "${GREEN}✓ Created and pushed tag v${NEW_VERSION}${NC}"
 
-# Build and publish to PyPI
+# Build and publish to PyPI (in workshop subdirectory)
 echo -e "\n${BLUE}📦 Building package...${NC}"
-python -m build
+(cd workshop && python -m build)
 
 echo -e "\n${BLUE}📤 Publishing to PyPI...${NC}"
 if [[ -z "$TWINE_USERNAME" ]] || [[ -z "$TWINE_PASSWORD" ]]; then
     echo -e "${YELLOW}⚠️  TWINE_USERNAME and/or TWINE_PASSWORD not set.${NC}"
     echo "Please set them and run:"
-    echo "  python -m twine upload dist/claude_workshop-${NEW_VERSION}*"
+    echo "  cd workshop && python -m twine upload dist/claude_workshop-${NEW_VERSION}*"
     exit 0
 fi
 
-python -m twine upload "dist/claude_workshop-${NEW_VERSION}*"
+(cd workshop && python -m twine upload "dist/claude_workshop-${NEW_VERSION}*")
 echo -e "${GREEN}✓ Published to PyPI${NC}"
 
 # Upgrade local installation
