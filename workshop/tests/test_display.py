@@ -14,13 +14,15 @@ class TestFormatTimestamp:
 
     def test_just_now(self):
         """Test timestamp within last minute"""
-        now = datetime.now()
+        # Use UTC to match how Workshop stores timestamps
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         iso = now.isoformat()
         assert format_timestamp(iso) == "just now"
 
     def test_minutes_ago(self):
         """Test timestamp within last hour"""
-        past = datetime.now() - timedelta(minutes=30)
+        # Use UTC to match how Workshop stores timestamps
+        past = (datetime.now(timezone.utc) - timedelta(minutes=30)).replace(tzinfo=None)
         iso = past.isoformat()
         result = format_timestamp(iso)
         assert "m ago" in result
@@ -28,7 +30,8 @@ class TestFormatTimestamp:
 
     def test_hours_ago(self):
         """Test timestamp within last day"""
-        past = datetime.now() - timedelta(hours=5)
+        # Use UTC to match how Workshop stores timestamps
+        past = (datetime.now(timezone.utc) - timedelta(hours=5)).replace(tzinfo=None)
         iso = past.isoformat()
         result = format_timestamp(iso)
         assert "h ago" in result
@@ -36,14 +39,16 @@ class TestFormatTimestamp:
 
     def test_yesterday(self):
         """Test timestamp exactly 1 day ago"""
-        past = datetime.now() - timedelta(days=1)
+        # Use UTC to match how Workshop stores timestamps
+        past = (datetime.now(timezone.utc) - timedelta(days=1)).replace(tzinfo=None)
         iso = past.isoformat()
         result = format_timestamp(iso)
         assert result == "yesterday"
 
     def test_days_ago(self):
         """Test timestamp 2-6 days ago"""
-        past = datetime.now() - timedelta(days=3)
+        # Use UTC to match how Workshop stores timestamps
+        past = (datetime.now(timezone.utc) - timedelta(days=3)).replace(tzinfo=None)
         iso = past.isoformat()
         result = format_timestamp(iso)
         assert "days ago" in result
@@ -51,7 +56,8 @@ class TestFormatTimestamp:
 
     def test_date_format_for_old_timestamps(self):
         """Test timestamp more than a week ago shows date"""
-        past = datetime.now() - timedelta(days=10)
+        # Use UTC to match how Workshop stores timestamps
+        past = (datetime.now(timezone.utc) - timedelta(days=10)).replace(tzinfo=None)
         iso = past.isoformat()
         result = format_timestamp(iso)
         # Should be formatted as YYYY-MM-DD
@@ -67,15 +73,17 @@ class TestFormatTimestamp:
         assert "h ago" in result or "just now" in result
 
     def test_timezone_naive_datetime(self):
-        """Test timezone-naive datetime handling"""
-        past = datetime.now() - timedelta(minutes=45)
+        """Test timezone-naive datetime handling (assumes UTC storage)"""
+        # Use UTC to match how Workshop stores timestamps
+        past = (datetime.now(timezone.utc) - timedelta(minutes=45)).replace(tzinfo=None)
         iso = past.isoformat()
         result = format_timestamp(iso)
         assert "m ago" in result or "just now" in result
 
     def test_edge_case_60_seconds(self):
         """Test timestamp right at 60 seconds"""
-        past = datetime.now() - timedelta(seconds=60)
+        # Use UTC to match how Workshop stores timestamps
+        past = (datetime.now(timezone.utc) - timedelta(seconds=60)).replace(tzinfo=None)
         iso = past.isoformat()
         result = format_timestamp(iso)
         # Could be "just now" or "1m ago" depending on exact timing
@@ -83,7 +91,8 @@ class TestFormatTimestamp:
 
     def test_edge_case_3600_seconds(self):
         """Test timestamp right at 1 hour"""
-        past = datetime.now() - timedelta(seconds=3600)
+        # Use UTC to match how Workshop stores timestamps
+        past = (datetime.now(timezone.utc) - timedelta(seconds=3600)).replace(tzinfo=None)
         iso = past.isoformat()
         result = format_timestamp(iso)
         # Could be "59m ago" or "1h ago"
@@ -161,13 +170,57 @@ class TestDisplayFunctions:
 
     def test_format_timestamp_various_formats(self):
         """Test that format_timestamp handles various ISO formats"""
+        # Use UTC to match how Workshop stores timestamps
         formats = [
-            datetime.now().isoformat(),
+            datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             datetime.now(timezone.utc).isoformat(),
-            (datetime.now() - timedelta(days=5)).isoformat(),
+            (datetime.now(timezone.utc) - timedelta(days=5)).replace(tzinfo=None).isoformat(),
         ]
 
         for iso_str in formats:
             result = format_timestamp(iso_str)
             assert isinstance(result, str)
             assert len(result) > 0
+
+    def test_utc_timestamp_conversion_regression(self):
+        """
+        Regression test: Naive UTC timestamps should be converted to local time for display.
+
+        Bug: Entries created "now" showed as "19h ago" because naive UTC timestamps
+        (e.g., 19:00 UTC) were compared directly to local time (e.g., 14:00 local)
+        without timezone conversion.
+
+        Fix: Assume naive timestamps are UTC, convert to local before calculating
+        relative time using dt.replace(tzinfo=timezone.utc).astimezone().
+        """
+        # Simulate how Workshop stores timestamps - naive UTC datetime
+        utc_now = datetime.now(timezone.utc)
+        naive_utc = utc_now.replace(tzinfo=None)  # Remove timezone info (how it's stored)
+
+        # Test 1: Current UTC timestamp should show as "just now"
+        iso_str = naive_utc.isoformat()
+        result = format_timestamp(iso_str)
+        assert result == "just now", f"Expected 'just now' but got '{result}'"
+
+        # Test 2: UTC timestamp from 5 minutes ago should show as "5m ago"
+        utc_5min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
+        naive_utc_5min = utc_5min_ago.replace(tzinfo=None)
+        iso_str = naive_utc_5min.isoformat()
+        result = format_timestamp(iso_str)
+        assert "m ago" in result, f"Expected minutes ago but got '{result}'"
+        # Allow for timing variance (4-6 minutes)
+        assert any(str(i) in result for i in range(4, 7)), f"Expected ~5m ago but got '{result}'"
+
+        # Test 3: UTC timestamp from 2 hours ago should show as "2h ago" (not 21h or 17h)
+        utc_2h_ago = datetime.now(timezone.utc) - timedelta(hours=2)
+        naive_utc_2h = utc_2h_ago.replace(tzinfo=None)
+        iso_str = naive_utc_2h.isoformat()
+        result = format_timestamp(iso_str)
+        assert "h ago" in result, f"Expected hours ago but got '{result}'"
+        # Allow 1-3h variance
+        assert any(str(i) in result for i in range(1, 4)), f"Expected ~2h ago but got '{result}'"
+
+        # Test 4: Verify the bug would have manifested without fix
+        # If we were in timezone UTC-5 and it's 14:00 local (19:00 UTC), a timestamp
+        # from "now" in naive UTC (19:00) would incorrectly show as 5-19 hours off
+        # This test ensures we're converting properly regardless of local timezone
