@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/workshop-session-start.sh"
+            "command": "./.claude/workshop-session-start.sh"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/workshop-session-start.sh"
+            "command": "./.claude/workshop-session-start.sh"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/workshop-session-end.sh ${CLAUDE_TRANSCRIPT_FILE}"
+            "command": "./.claude/workshop-session-end.sh ${CLAUDE_TRANSCRIPT_FILE}"
           }
         ]
       }
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/workshop-pre-compact.sh"
+            "command": "./.claude/workshop-pre-compact.sh"
           }
         ]
       },
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/workshop-pre-compact.sh"
+            "command": "./.claude/workshop-pre-compact.sh"
           }
         ]
       }
