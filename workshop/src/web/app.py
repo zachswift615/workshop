@@ -16,9 +16,25 @@ from src.config import WorkshopConfig
 app = Flask(__name__)
 app.secret_key = 'workshop-dev-key-change-in-production'
 
+# Disable caching to prevent stale 403 errors when server restarts
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
 # Store the workspace directory that was active when server started
 # This ensures the web UI shows the correct project's data
 _startup_workspace = None
+
+@app.after_request
+def add_header(response):
+    """
+    Add headers to prevent caching.
+
+    This prevents browsers from caching 403 errors when the server is stopped,
+    which would otherwise persist even after restarting the server.
+    """
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 def get_store():
     """
