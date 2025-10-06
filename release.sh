@@ -98,13 +98,32 @@ else
     fi
 fi
 
+# Setup for testing: Uninstall PyPI version and install editable local version
+echo -e "\n${BLUE}🔧 Setting up test environment...${NC}"
+echo -e "  Uninstalling PyPI version (if installed)..."
+pip uninstall claude-workshop -y 2>/dev/null || echo "  (no existing installation found)"
+
+echo -e "  Installing editable local version..."
+if ! (cd workshop && pip install -e . -q); then
+    echo -e "${RED}❌ Failed to install editable version. Aborting.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ Editable version installed${NC}"
+
 # Run tests before proceeding (in workshop subdirectory)
 echo -e "\n${BLUE}🧪 Running tests...${NC}"
 if ! (cd workshop && pytest); then
     echo -e "${RED}❌ Tests failed. Aborting release.${NC}"
+    # Clean up editable install
+    pip uninstall claude-workshop -y 2>/dev/null
     exit 1
 fi
 echo -e "${GREEN}✓ All tests passed${NC}"
+
+# Clean up: Uninstall editable version before PyPI install
+echo -e "\n${BLUE}🧹 Cleaning up test environment...${NC}"
+pip uninstall claude-workshop -y
+echo -e "${GREEN}✓ Editable version uninstalled${NC}"
 
 # Get commits since last version tag
 LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
