@@ -1372,7 +1372,7 @@ def import_status():
 
 @main.command()
 @click.option('--host', default='127.0.0.1', help='Host to bind to (default: 127.0.0.1)')
-@click.option('--port', '-p', default=5000, type=int, help='Port to run on (default: 5000)')
+@click.option('--port', '-p', default=5001, type=int, help='Port to run on (default: 5001)')
 @click.option('--debug/--no-debug', default=False, help='Run in debug mode')
 def web(host, port, debug):
     """Launch web UI for browsing and editing entries"""
