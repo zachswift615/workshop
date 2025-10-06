@@ -168,19 +168,20 @@ def edit_entry(entry_id):
         reasoning = request.form.get('reasoning', '')
         entry_type = request.form.get('type', 'note')
 
-        # Update in database
-        conn = store._get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE entries
-            SET content = ?, metadata = ?, type = ?
-            WHERE id = ?
-        ''', (content, reasoning, entry_type, entry_id))
-        conn.commit()
-        conn.close()
+        # Update using SQLAlchemy
+        success = store.update_entry(
+            entry_id=entry_id,
+            content=content,
+            reasoning=reasoning if reasoning else None,
+            entry_type=entry_type
+        )
 
-        flash('Entry updated successfully', 'success')
-        return redirect(url_for('view_entry', entry_id=entry_id))
+        if success:
+            flash('Entry updated successfully', 'success')
+            return redirect(url_for('view_entry', entry_id=entry_id))
+        else:
+            flash('Entry not found', 'error')
+            return redirect(url_for('dashboard'))
 
     # GET request - show form
     entry = store.get_entry_by_id(entry_id)
@@ -195,13 +196,14 @@ def delete_entry(entry_id):
     """Delete entry"""
     store = get_store()
 
-    conn = store._get_connection()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM entries WHERE id = ?', (entry_id,))
-    conn.commit()
-    conn.close()
+    # Delete using SQLAlchemy
+    success = store.delete_entry(entry_id)
 
-    flash('Entry deleted successfully', 'success')
+    if success:
+        flash('Entry deleted successfully', 'success')
+    else:
+        flash('Entry not found', 'error')
+
     return redirect(url_for('dashboard'))
 
 @app.route('/entries/new', methods=['GET', 'POST'])

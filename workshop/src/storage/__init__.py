@@ -97,6 +97,10 @@ class WorkshopStorage:
         """Get the most recent entry."""
         return self.entries.get_last_entry(*args, **kwargs)
 
+    def update_entry(self, *args, **kwargs):
+        """Update an existing entry."""
+        return self.entries.update_entry(*args, **kwargs)
+
     def delete_entry(self, *args, **kwargs):
         """Delete an entry by ID."""
         return self.entries.delete_entry(*args, **kwargs)

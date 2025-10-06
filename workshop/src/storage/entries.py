@@ -177,6 +177,51 @@ class EntriesManager:
         entry = self.session.execute(query).scalar_one_or_none()
         return self._entry_to_dict(entry) if entry else None
 
+    def update_entry(
+        self,
+        entry_id: str,
+        content: Optional[str] = None,
+        reasoning: Optional[str] = None,
+        entry_type: Optional[str] = None
+    ) -> bool:
+        """
+        Update an existing entry.
+
+        Args:
+            entry_id: Entry ID to update
+            content: New content (if provided)
+            reasoning: New reasoning (if provided)
+            entry_type: New type (if provided)
+
+        Returns:
+            True if entry was updated, False if not found
+        """
+        try:
+            entry_uuid = UUID(entry_id)
+        except ValueError:
+            return False
+
+        query = select(Entry).where(Entry.id == entry_uuid)
+
+        # Apply project filter
+        if self.project_id:
+            query = query.where(Entry.project_id == self.project_id)
+
+        entry = self.session.execute(query).scalar_one_or_none()
+        if not entry:
+            return False
+
+        # Update fields if provided
+        if content is not None:
+            entry.content = content
+        if reasoning is not None:
+            entry.reasoning = reasoning
+        if entry_type is not None:
+            entry.type = entry_type
+
+        self.session.commit()
+        return True
+
     def delete_entry(self, entry_id: str) -> bool:
         """
         Delete an entry by ID.
