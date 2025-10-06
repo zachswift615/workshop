@@ -828,29 +828,29 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                     shutil.copy2(settings_src, settings_dst)
                     files_copied.append('settings.json')
 
-            # Copy workshop-session-start.sh
+            # Copy workshop-session-start.sh (always update to get latest fixes)
             script_src = template_dir / "workshop-session-start.sh"
             script_dst = local_claude_dir / "workshop-session-start.sh"
-            if script_src.exists() and not script_dst.exists():
+            if script_src.exists():
                 shutil.copy2(script_src, script_dst)
                 script_dst.chmod(0o755)  # Make executable
-                files_copied.append('workshop-session-start.sh')
+                files_copied.append('workshop-session-start.sh (updated)')
 
-            # Copy workshop-session-end.sh
+            # Copy workshop-session-end.sh (always update to get latest fixes)
             script_end_src = template_dir / "workshop-session-end.sh"
             script_end_dst = local_claude_dir / "workshop-session-end.sh"
-            if script_end_src.exists() and not script_end_dst.exists():
+            if script_end_src.exists():
                 shutil.copy2(script_end_src, script_end_dst)
                 script_end_dst.chmod(0o755)  # Make executable
-                files_copied.append('workshop-session-end.sh')
+                files_copied.append('workshop-session-end.sh (updated)')
 
-            # Copy workshop-pre-compact.sh
+            # Copy workshop-pre-compact.sh (always update to get latest fixes)
             script_compact_src = template_dir / "workshop-pre-compact.sh"
             script_compact_dst = local_claude_dir / "workshop-pre-compact.sh"
-            if script_compact_src.exists() and not script_compact_dst.exists():
+            if script_compact_src.exists():
                 shutil.copy2(script_compact_src, script_compact_dst)
                 script_compact_dst.chmod(0o755)  # Make executable
-                files_copied.append('workshop-pre-compact.sh')
+                files_copied.append('workshop-pre-compact.sh (updated)')
 
             # Copy commands directory
             commands_src = template_dir / "commands"
