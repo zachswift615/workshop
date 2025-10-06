@@ -118,3 +118,86 @@ def test_web_dashboard_data_path_fallback(temp_workspace):
         data = response.data.decode('utf-8')
         # Should show workshop.db for SQLite storage
         assert 'workshop.db' in data or '.workshop' in data
+
+
+def test_web_edit_entry(temp_workspace):
+    """
+    Regression test: Ensure edit functionality works with SQLAlchemy
+
+    Issue: Web UI crashed when editing entries with:
+    AttributeError: 'WorkshopStorage' object has no attribute '_get_connection'
+
+    Root cause: edit_entry route used old raw SQL methods that don't exist
+    Fix: Added update_entry() method and use SQLAlchemy API
+    """
+    try:
+        from src.web.app import app
+        import src.web.app as app_module
+    except ImportError:
+        pytest.skip("Flask not installed")
+
+    app_module._startup_workspace = str(temp_workspace)
+    app.config['TESTING'] = True
+
+    # Create store and add an entry
+    store = WorkshopStorage(workspace_dir=temp_workspace)
+    entry = store.add_entry(entry_type="note", content="Original content")
+    entry_id = entry['id']
+
+    with app.test_client() as client:
+        # Test GET edit page
+        response = client.get(f'/entries/{entry_id}/edit')
+        assert response.status_code == 200
+        assert b'Original content' in response.data
+
+        # Test POST update
+        response = client.post(f'/entries/{entry_id}/edit', data={
+            'content': 'Updated content',
+            'reasoning': 'Updated reasoning',
+            'type': 'decision'
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        assert b'Entry updated successfully' in response.data
+
+    # Verify entry was actually updated
+    updated_entry = store.get_entry_by_id(entry_id)
+    assert updated_entry['content'] == 'Updated content'
+    assert updated_entry['reasoning'] == 'Updated reasoning'
+    assert updated_entry['type'] == 'decision'
+
+
+def test_web_delete_entry(temp_workspace):
+    """
+    Regression test: Ensure delete functionality works with SQLAlchemy
+
+    Issue: Web UI crashed when deleting entries with:
+    AttributeError: 'WorkshopStorage' object has no attribute '_get_connection'
+
+    Root cause: delete_entry route used old raw SQL methods that don't exist
+    Fix: Use SQLAlchemy-based delete_entry() method
+    """
+    try:
+        from src.web.app import app
+        import src.web.app as app_module
+    except ImportError:
+        pytest.skip("Flask not installed")
+
+    app_module._startup_workspace = str(temp_workspace)
+    app.config['TESTING'] = True
+
+    # Create store and add an entry
+    store = WorkshopStorage(workspace_dir=temp_workspace)
+    entry = store.add_entry(entry_type="note", content="To be deleted")
+    entry_id = entry['id']
+
+    # Verify entry exists
+    assert store.get_entry_by_id(entry_id) is not None
+
+    with app.test_client() as client:
+        # Test POST delete
+        response = client.post(f'/entries/{entry_id}/delete', follow_redirects=True)
+        assert response.status_code == 200
+        assert b'Entry deleted successfully' in response.data
+
+    # Verify entry was actually deleted
+    assert store.get_entry_by_id(entry_id) is None
