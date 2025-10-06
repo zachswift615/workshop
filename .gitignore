@@ -55,3 +55,8 @@ htmlcov/
 !.claude/commands/
 !.claude/commands/workshop.sh
 settings.local.json
+
+# Backup files
+*.bak
+*.tmp
+*.tmp.*
