@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "claude-workshop"
-version = "2.0.0"
+version = "2.0.1"
 description = "Persistent context and memory tool for Claude Code sessions"
 readme = "README.md"
 license = {text = "MIT"}
@@ -73,7 +73,7 @@ Issues = "https://github.com/zachswift615/workshop/issues"
 workshop = "src.cli:main"
 
 [tool.setuptools]
-packages = ["src", "src.web"]
+packages = ["src", "src.storage", "src.web"]
 
 [tool.setuptools.package-data]
 src = [

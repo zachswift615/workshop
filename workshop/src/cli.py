@@ -601,7 +601,7 @@ def clear(before_date, entry_type):
 def info():
     """Show workspace information"""
     store = get_storage()
-    click.echo(f"\n🔧 Workshop version: 0.3.0")
+    click.echo(f"\n🔧 Workshop version: 2.0.1")
     click.echo(f"📁 Workshop workspace: {store.db_manager.workspace_dir}")
 
     # Get database file path
