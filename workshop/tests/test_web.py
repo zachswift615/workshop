@@ -76,10 +76,10 @@ def test_web_command_error_message():
 
     This test verifies the actual error message string used in cli.py
     """
-    # Read the cli.py source file directly
+    # Read the cli.py source file directly with UTF-8 encoding for Windows compatibility
     from pathlib import Path
     cli_path = Path(__file__).parent.parent / "src" / "cli.py"
-    cli_source = cli_path.read_text()
+    cli_source = cli_path.read_text(encoding='utf-8')
 
     # Find the web function definition
     web_function_start = cli_source.find('def web(')
