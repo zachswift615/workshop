@@ -12,6 +12,13 @@ if ! command -v workshop >/dev/null 2>&1; then
     exit 0
 fi
 
+# Check if workshop is initialized for this project (has workspace configured)
+# If not, auto-initialize with defaults
+if ! workshop info >/dev/null 2>&1; then
+    # Not initialized - run auto-init (creates .workshop at project root)
+    workshop init --local --auto >/dev/null 2>&1 || true
+fi
+
 # Auto-import new JSONL files (runs silently in background)
 # This captures compaction summaries and new conversation data automatically
 workshop import >/dev/null 2>&1 &

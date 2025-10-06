@@ -666,10 +666,12 @@ def session(session_id):
 @main.command()
 @click.option('--global', 'global_config', is_flag=True, help='Set up global Claude Code integration')
 @click.option('--local', 'local_config', is_flag=True, help='Set up local project integration')
-def init(global_config, local_config):
+@click.option('--auto', is_flag=True, help='Auto-accept defaults (non-interactive mode)')
+def init(global_config, local_config, auto):
     """Set up Claude Code integration for Workshop"""
     import json
     import shutil
+    import os
     from pathlib import Path
 
     # If no flags specified, default to both
@@ -679,10 +681,14 @@ def init(global_config, local_config):
 
     success_messages = []
 
+    # Set environment variable for non-interactive mode
+    if auto:
+        os.environ['WORKSHOP_AUTO_INIT'] = '1'
+
     # Initialize workspace (triggers project detection and registration)
-    # This will prompt for workspace location if not already configured
+    # This will prompt for workspace location if not already configured (unless --auto)
     storage = get_storage()
-    success_messages.append(f"✓ Workspace: {storage.workspace_dir}")
+    success_messages.append(f"✓ Workspace: {storage.db_manager.workspace_dir}")
 
     # Global configuration
     if global_config:

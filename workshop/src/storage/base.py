@@ -146,7 +146,26 @@ class DatabaseManager:
         return None
 
     def _prompt_for_workspace(self, project_root: Path, detection_reason: str, confidence: int) -> Path:
-        """Interactive prompt for workspace location."""
+        """Interactive prompt for workspace location (or auto-select if non-interactive)."""
+        import sys
+        import os
+
+        # Check for non-interactive mode (env var or no TTY)
+        auto_mode = os.getenv('WORKSHOP_AUTO_INIT') == '1' or not sys.stdin.isatty()
+
+        if auto_mode:
+            # Non-interactive: auto-select project root
+            workspace = project_root / ".workshop"
+            workspace.mkdir(parents=True, exist_ok=True)
+
+            # Register in config
+            db_path = workspace / "workshop.db"
+            config = WorkshopConfig()
+            config.register_project(project_root, database_path=db_path)
+
+            return workspace
+
+        # Interactive mode - show prompts
         current = Path.cwd()
 
         click.echo(f"\n📝 Workshop Setup")
