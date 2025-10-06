@@ -5,6 +5,16 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.6] - 2025-10-06
+
+### Added
+- Add import guidance to CLAUDE.md for better discoverability
+
+### Fixed
+- Fix: Add version parameter to web UI URL for cache busting
+- Fix: Change default port to 5001 and add meta cache-control tags
+
+
 ## [2.2.5] - 2025-10-06
 
 ### Fixed
@@ -453,3 +463,4 @@ Workshop v1.0.0 marks the transition from prototype to production-ready software
 [2.2.3]: https://github.com/zachswift615/workshop/compare/v2.2.2...v2.2.3
 [2.2.4]: https://github.com/zachswift615/workshop/compare/v2.2.3...v2.2.4
 [2.2.5]: https://github.com/zachswift615/workshop/compare/v2.2.4...v2.2.5
+[2.2.6]: https://github.com/zachswift615/workshop/compare/v2.2.5...v2.2.6
