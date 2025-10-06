@@ -328,7 +328,7 @@ class EntriesManager:
 
         # Order: decisions first, then by timestamp
         query = query.order_by(
-            Entry.type == 'decision',  # False < True, so this puts decisions first
+            (Entry.type == 'decision').desc(),  # True DESC first, so decisions come first
             Entry.timestamp.desc()
         ).limit(limit)
 

@@ -602,13 +602,20 @@ def info():
     """Show workspace information"""
     store = get_storage()
     click.echo(f"\n🔧 Workshop version: 0.3.0")
-    click.echo(f"📁 Workshop workspace: {store.workspace_dir}")
-    click.echo(f"📄 Database file: {store.db_file}")
+    click.echo(f"📁 Workshop workspace: {store.db_manager.workspace_dir}")
 
-    # Count entries using SQLite
-    with store._get_connection() as conn:
-        cursor = conn.execute("SELECT COUNT(*) as count FROM entries")
-        total_entries = cursor.fetchone()['count']
+    # Get database file path
+    if store.db_manager.workspace_dir:
+        db_file = store.db_manager.workspace_dir / "workshop.db"
+        click.echo(f"📄 Database file: {db_file}")
+
+    # Count entries using SQLAlchemy
+    from sqlalchemy import select, func
+    from .models import Entry
+    with store.db_manager.get_session() as session:
+        total_entries = session.execute(
+            select(func.count()).select_from(Entry)
+        ).scalar()
     click.echo(f"📝 Total entries: {total_entries}")
 
     current_state = store.get_current_state()

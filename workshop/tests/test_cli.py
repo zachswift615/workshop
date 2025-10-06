@@ -12,9 +12,10 @@ from src.cli import main, note, decision, gotcha, preference, recent, search, co
 
 
 @pytest.fixture
-def temp_workspace():
+def temp_workspace(monkeypatch):
     """Create a temporary workspace for testing"""
     import src.cli
+    import os
     # Reset global storage before each test
     src.cli.storage = None
 
@@ -22,6 +23,10 @@ def temp_workspace():
     # Create .workshop directory
     workshop_dir = temp_dir / ".workshop"
     workshop_dir.mkdir(exist_ok=True)
+
+    # Set WORKSHOP_DIR environment variable to avoid workspace prompts
+    monkeypatch.setenv('WORKSHOP_DIR', str(workshop_dir))
+
     yield temp_dir
     shutil.rmtree(temp_dir, ignore_errors=True)
 

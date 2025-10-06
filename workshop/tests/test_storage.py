@@ -28,8 +28,9 @@ def storage(temp_workspace):
 def test_init_creates_database(temp_workspace):
     """Test that initializing storage creates the database"""
     storage = WorkshopStorageSQLite(temp_workspace)
-    assert storage.db_file.exists()
-    assert storage.db_file.name == "workshop.db"
+    db_file = temp_workspace / "workshop.db"
+    assert db_file.exists()
+    assert db_file.name == "workshop.db"
 
 
 def test_add_entry(storage):
@@ -133,8 +134,11 @@ def test_goals(storage):
 
 def test_sessions(storage):
     """Test session tracking"""
+    from uuid import uuid4
+    test_session_id = str(uuid4())
+
     session = storage.add_session(
-        session_id="test-123",
+        session_id=test_session_id,
         start_time=datetime.now().isoformat(),
         end_time=datetime.now().isoformat(),
         duration_minutes=30,
@@ -147,7 +151,7 @@ def test_sessions(storage):
         reason="test"
     )
 
-    assert session["id"] == "test-123"
+    assert session["id"] == test_session_id
     assert len(session["files_modified"]) == 2
     assert session["workshop_entries"]["decisions"] == 2
 
@@ -156,12 +160,12 @@ def test_sessions(storage):
     assert len(sessions) == 1
 
     # Get by ID
-    retrieved = storage.get_session_by_id("test-123")
-    assert retrieved["id"] == "test-123"
+    retrieved = storage.get_session_by_id(test_session_id)
+    assert retrieved["id"] == test_session_id
 
     # Get last session
     last = storage.get_last_session()
-    assert last["id"] == "test-123"
+    assert last["id"] == test_session_id
 
 
 if __name__ == "__main__":
