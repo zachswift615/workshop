@@ -944,11 +944,15 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 "Bash(workshop summary)",
                 "Bash(workshop web)",
                 "Bash(workshop why:*)",
-                # Hook scripts
+                # Hook scripts (with and without arguments)
+                "Bash(.claude/workshop-session-start.sh)",
+                "Bash(./.claude/workshop-session-start.sh)",
                 "Bash(.claude/workshop-session-start.sh:*)",
                 "Bash(./.claude/workshop-session-start.sh:*)",
                 "Bash(.claude/workshop-session-end.sh:*)",
                 "Bash(./.claude/workshop-session-end.sh:*)",
+                "Bash(.claude/workshop-pre-compact.sh)",
+                "Bash(./.claude/workshop-pre-compact.sh)",
                 "Bash(.claude/workshop-pre-compact.sh:*)",
                 "Bash(./.claude/workshop-pre-compact.sh:*)"
             ]
