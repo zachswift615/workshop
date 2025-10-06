@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "claude-workshop"
-version = "2.0.1"
+version = "2.0.2"
 description = "Persistent context and memory tool for Claude Code sessions"
 readme = "README.md"
 license = {text = "MIT"}
