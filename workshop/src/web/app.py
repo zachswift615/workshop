@@ -83,13 +83,14 @@ def dashboard():
 
     # Get workspace info
     workspace_path = store.workspace_dir
-    db_path = store.db_file
+    # db_file is on db_manager for SQLite storage
+    data_path = getattr(store.db_manager, 'db_file', None) if hasattr(store, 'db_manager') else None
 
     return render_template('dashboard.html',
                          stats=stats,
                          entries=recent_entries,
                          workspace_path=workspace_path,
-                         db_path=db_path)
+                         db_path=data_path)
 
 @app.route('/entries')
 def list_entries():

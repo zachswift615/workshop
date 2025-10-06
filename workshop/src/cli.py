@@ -1379,7 +1379,7 @@ def web(host, port, debug):
     try:
         from .web.app import run
     except ImportError:
-        display_error("Flask is not installed. Install with: pip install flask")
+        display_error('Flask is not installed. Install with: pip install "claude-workshop[web]"')
         return
 
     store = get_storage()

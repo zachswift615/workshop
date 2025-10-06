@@ -58,7 +58,7 @@ class DatabaseManager:
 
         else:
             # OSS mode: SQLite file per project
-            self._workspace_dir = workspace_dir or self._find_workspace()
+            self._workspace_dir = Path(workspace_dir) if workspace_dir else self._find_workspace()
             self.db_file = self._workspace_dir / "workshop.db"
 
             # Ensure workspace exists
