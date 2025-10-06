@@ -158,25 +158,23 @@ def should_migrate(workspace_dir: Optional[Path] = None) -> bool:
     Returns:
         True if JSON data exists but SQLite database doesn't exist yet
     """
-    from .storage import WorkshopStorage
-
     # Find workspace directory
     if workspace_dir is None:
-        from .storage_sqlite import WorkshopStorageSQLite
-        temp_storage = WorkshopStorageSQLite.__new__(WorkshopStorageSQLite)
-        workspace_dir = temp_storage._find_workspace()
+        from .project_detection import find_project_root
+        project_root, _, _ = find_project_root()
+        workspace_dir = project_root / ".workshop" if project_root else Path.home() / ".workshop" / "global"
 
-    json_storage = WorkshopStorage(workspace_dir)
+    data_file = workspace_dir / "data.json"
     db_file = workspace_dir / "workshop.db"
 
     # Check if JSON file exists and has data
-    if not json_storage.data_file.exists():
+    if not data_file.exists():
         return False
 
     # Check if SQLite database doesn't exist yet
     if not db_file.exists():
         try:
-            data = json_storage._read_data()
+            data = _read_json_data(data_file)
             return len(data.get('entries', [])) > 0
         except:
             return False
@@ -269,7 +267,208 @@ def migrate_schema_to_v2(db_path: Path) -> bool:
         return False
 
 
-def migrate_schema(db_path: Path, target_version: int = 2) -> bool:
+def migrate_schema_to_v3(db_path: Path) -> bool:
+    """
+    Migrate schema from v2 to v3: Add multi-tenant support (project_id, users, projects tables).
+
+    Args:
+        db_path: Path to SQLite database
+
+    Returns:
+        True if migration succeeded
+    """
+    print("🔄 Migrating database schema to v3 (multi-tenant support)...")
+
+    # Backup database before migration
+    backup_path = db_path.with_suffix('.db.backup.v2')
+    if not backup_path.exists():
+        shutil.copy2(db_path, backup_path)
+        print(f"  ✓ Created backup: {backup_path.name}")
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+
+        # Add users and projects tables (not used in OSS single-tenant mode, but schema compatible)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id CHAR(36) PRIMARY KEY,
+                api_key TEXT UNIQUE,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id CHAR(36) PRIMARY KEY,
+                user_id CHAR(36),
+                name TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+
+        # Rename metadata columns to avoid SQLAlchemy reserved names
+        # SQLite doesn't support ALTER COLUMN RENAME, so we need to recreate tables
+
+        # For entries table - save related tables first
+        conn.execute("ALTER TABLE tags RENAME TO tags_old")
+        conn.execute("ALTER TABLE files RENAME TO files_old")
+        conn.execute("ALTER TABLE entries RENAME TO entries_old")
+
+        # Create new entries table with project_id and entry_metadata
+        conn.execute("""
+            CREATE TABLE entries (
+                id CHAR(36) PRIMARY KEY,
+                project_id CHAR(36),
+                type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                reasoning TEXT,
+                timestamp TEXT NOT NULL,
+                branch TEXT,
+                commit_hash TEXT,
+                entry_metadata TEXT
+            )
+        """)
+        conn.execute("""
+            INSERT INTO entries (id, type, content, reasoning, timestamp, branch, commit_hash, entry_metadata)
+            SELECT id, type, content, reasoning, timestamp, branch, commit_hash, metadata
+            FROM entries_old
+        """)
+
+        # Recreate tags table
+        conn.execute("""
+            CREATE TABLE tags (
+                entry_id CHAR(36) NOT NULL,
+                tag TEXT NOT NULL,
+                PRIMARY KEY (entry_id, tag),
+                FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("INSERT INTO tags SELECT * FROM tags_old")
+
+        # Recreate files table
+        conn.execute("""
+            CREATE TABLE files (
+                entry_id CHAR(36) NOT NULL,
+                file_path TEXT NOT NULL,
+                PRIMARY KEY (entry_id, file_path),
+                FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("INSERT INTO files SELECT * FROM files_old")
+
+        # Drop old tables
+        conn.execute("DROP TABLE entries_old")
+        conn.execute("DROP TABLE tags_old")
+        conn.execute("DROP TABLE files_old")
+
+        # For sessions table - save related tables first
+        conn.execute("ALTER TABLE session_files RENAME TO session_files_old")
+        conn.execute("ALTER TABLE session_commands RENAME TO session_commands_old")
+        conn.execute("ALTER TABLE session_workshop_entries RENAME TO session_workshop_entries_old")
+        conn.execute("ALTER TABLE session_user_requests RENAME TO session_user_requests_old")
+        conn.execute("ALTER TABLE sessions RENAME TO sessions_old")
+
+        # Create new sessions table with project_id and session_metadata
+        conn.execute("""
+            CREATE TABLE sessions (
+                id CHAR(36) PRIMARY KEY,
+                project_id CHAR(36),
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                duration_minutes INTEGER NOT NULL,
+                summary TEXT,
+                branch TEXT,
+                reason TEXT,
+                session_metadata TEXT
+            )
+        """)
+        conn.execute("""
+            INSERT INTO sessions (id, start_time, end_time, duration_minutes, summary, branch, reason, session_metadata)
+            SELECT id, start_time, end_time, duration_minutes, summary, branch, reason, metadata
+            FROM sessions_old
+        """)
+
+        # Recreate session related tables
+        conn.execute("""
+            CREATE TABLE session_files (
+                session_id CHAR(36) NOT NULL,
+                file_path TEXT NOT NULL,
+                PRIMARY KEY (session_id, file_path),
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("INSERT INTO session_files SELECT * FROM session_files_old")
+
+        conn.execute("""
+            CREATE TABLE session_commands (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id CHAR(36) NOT NULL,
+                command TEXT NOT NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("INSERT INTO session_commands SELECT * FROM session_commands_old")
+
+        conn.execute("""
+            CREATE TABLE session_workshop_entries (
+                session_id CHAR(36) NOT NULL,
+                entry_type TEXT NOT NULL,
+                count INTEGER NOT NULL,
+                PRIMARY KEY (session_id, entry_type),
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("INSERT INTO session_workshop_entries SELECT * FROM session_workshop_entries_old")
+
+        conn.execute("""
+            CREATE TABLE session_user_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id CHAR(36) NOT NULL,
+                request TEXT NOT NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("INSERT INTO session_user_requests SELECT * FROM session_user_requests_old")
+
+        # Drop old tables
+        conn.execute("DROP TABLE sessions_old")
+        conn.execute("DROP TABLE session_files_old")
+        conn.execute("DROP TABLE session_commands_old")
+        conn.execute("DROP TABLE session_workshop_entries_old")
+        conn.execute("DROP TABLE session_user_requests_old")
+
+        # Add project_id column to remaining tables
+        conn.execute("ALTER TABLE preferences ADD COLUMN project_id CHAR(36)")
+        conn.execute("ALTER TABLE current_state ADD COLUMN project_id CHAR(36)")
+        conn.execute("ALTER TABLE import_history ADD COLUMN project_id CHAR(36)")
+
+        # Add indexes for project_id
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_project ON entries(project_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_preferences_project ON preferences(project_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_current_state_project ON current_state(project_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_import_history_project ON import_history(project_id)")
+
+        # Update schema version
+        conn.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('schema_version', '3')")
+
+        conn.commit()
+        conn.close()
+
+        print("  ✓ Migration to v3 complete")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ Migration failed: {e}")
+        # Restore from backup
+        if backup_path.exists():
+            shutil.copy2(backup_path, db_path)
+            print(f"  ✓ Restored from backup")
+        return False
+
+
+def migrate_schema(db_path: Path, target_version: int = 3) -> bool:
     """
     Migrate schema to target version.
 
@@ -292,6 +491,11 @@ def migrate_schema(db_path: Path, target_version: int = 2) -> bool:
     if current_version < 2 and target_version >= 2:
         if not migrate_schema_to_v2(db_path):
             return False
+        current_version = 2
+
+    if current_version < 3 and target_version >= 3:
+        if not migrate_schema_to_v3(db_path):
+            return False
 
     return True
 
@@ -312,7 +516,7 @@ def auto_migrate_if_needed(workspace_dir: Path) -> bool:
         return True  # New database, no migration needed
 
     current_version = get_schema_version(db_path)
-    target_version = 2  # Current schema version
+    target_version = 3  # Current schema version
 
     if current_version < target_version:
         return migrate_schema(db_path, target_version)
