@@ -1372,7 +1372,7 @@ def import_status():
 
 @main.command()
 @click.option('--host', default='127.0.0.1', help='Host to bind to (default: 127.0.0.1)')
-@click.option('--port', '-p', default=5001, type=int, help='Port to run on (default: 5001)')
+@click.option('--port', '-p', default=5000, type=int, help='Port to run on (default: 5000)')
 @click.option('--debug/--no-debug', default=False, help='Run in debug mode')
 def web(host, port, debug):
     """Launch web UI for browsing and editing entries"""
@@ -1385,11 +1385,19 @@ def web(host, port, debug):
     store = get_storage()
     workspace_path = store.workspace_dir
 
+    # Get version for cache-busting URL
+    import importlib.metadata
+    try:
+        version = importlib.metadata.version('claude-workshop')
+    except:
+        version = 'dev'
+
     click.echo(f"\n🌐 Starting Workshop Web UI...")
     click.echo(f"   Workspace: {workspace_path}")
-    click.echo(f"   URL: http://{host}:{port}")
+    click.echo(f"   URL: http://{host}:{port}?v={version}")
     click.echo(f"\n⚠️  Note: Web UI shows data from the workspace above.")
     click.echo(f"   To view a different project, stop this server and run 'workshop web' from that project.\n")
+    click.echo(f"   💡 Tip: The ?v={version} parameter helps avoid browser caching issues.\n")
     click.echo(f"Press Ctrl+C to stop\n")
 
     run(host=host, port=port, debug=debug, workspace_dir=workspace_path)
