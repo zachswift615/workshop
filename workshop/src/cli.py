@@ -816,8 +816,9 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                     # Always update hooks from template
                     existing['hooks'] = template_settings.get('hooks', {})
 
-                    # Always update customInstructions from template
-                    existing['customInstructions'] = template_settings.get('customInstructions', '')
+                    # Remove deprecated customInstructions (now using CLAUDE.md instead)
+                    if 'customInstructions' in existing:
+                        del existing['customInstructions']
 
                     files_copied.append('settings.json (updated)')
 
@@ -868,17 +869,121 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 shutil.copy2(readme_src, readme_dst)
                 files_copied.append('README.md')
 
-            # Create settings.local.json if it doesn't exist
+            # Copy or append CLAUDE.md (memory file with Workshop instructions)
+            claude_md_src = template_dir / "CLAUDE.md"
+            claude_md_dst = local_claude_dir / "CLAUDE.md"
+            if claude_md_src.exists():
+                with open(claude_md_src, 'r') as f:
+                    workshop_content = f.read()
+
+                if claude_md_dst.exists():
+                    # Check if Workshop section already exists
+                    with open(claude_md_dst, 'r') as f:
+                        existing_content = f.read()
+
+                    # Look for Workshop section marker
+                    if '# Workshop CLI Integration' not in existing_content:
+                        # Append Workshop section
+                        with open(claude_md_dst, 'a') as f:
+                            f.write('\n\n' + workshop_content)
+                        files_copied.append('CLAUDE.md (Workshop section appended)')
+                    else:
+                        # Workshop section already exists - check if it needs updating
+                        import re
+                        pattern = r'# Workshop CLI Integration.*?(?=\n# [^#]|\Z)'
+                        match = re.search(pattern, existing_content, flags=re.DOTALL)
+
+                        if match:
+                            existing_workshop_section = match.group(0).strip()
+                            new_workshop_section = workshop_content.strip()
+
+                            # Only update if content has changed
+                            if existing_workshop_section != new_workshop_section:
+                                new_content = re.sub(pattern, new_workshop_section, existing_content, flags=re.DOTALL)
+                                with open(claude_md_dst, 'w') as f:
+                                    f.write(new_content)
+                                files_copied.append('CLAUDE.md (Workshop section updated)')
+                            # else: Workshop section is already up to date, skip
+                else:
+                    # Create new file
+                    shutil.copy2(claude_md_src, claude_md_dst)
+                    files_copied.append('CLAUDE.md')
+
+            # Create or update settings.local.json
             # This file is REQUIRED for Claude Code to load settings.json
             settings_local_dst = local_claude_dir / "settings.local.json"
-            if not settings_local_dst.exists():
+
+            # Required Workshop permissions for hooks and CLI commands to work
+            required_workshop_permissions = [
+                # Workshop CLI commands
+                "Bash(workshop:*)",
+                "Bash(workshop antipattern:*)",
+                "Bash(workshop clean:*)",
+                "Bash(workshop clear:*)",
+                "Bash(workshop context)",
+                "Bash(workshop debug)",
+                "Bash(workshop decision:*)",
+                "Bash(workshop delete:*)",
+                "Bash(workshop export:*)",
+                "Bash(workshop goal:*)",
+                "Bash(workshop gotcha:*)",
+                "Bash(workshop import:*)",
+                "Bash(workshop import-status)",
+                "Bash(workshop info)",
+                "Bash(workshop init:*)",
+                "Bash(workshop next:*)",
+                "Bash(workshop note:*)",
+                "Bash(workshop preference:*)",
+                "Bash(workshop preferences)",
+                "Bash(workshop read:*)",
+                "Bash(workshop recent)",
+                "Bash(workshop search:*)",
+                "Bash(workshop session:*)",
+                "Bash(workshop sessions)",
+                "Bash(workshop state)",
+                "Bash(workshop summary)",
+                "Bash(workshop web)",
+                "Bash(workshop why:*)",
+                # Hook scripts
+                "Bash(.claude/workshop-session-start.sh:*)",
+                "Bash(./.claude/workshop-session-start.sh:*)",
+                "Bash(.claude/workshop-session-end.sh:*)",
+                "Bash(./.claude/workshop-session-end.sh:*)",
+                "Bash(.claude/workshop-pre-compact.sh:*)",
+                "Bash(./.claude/workshop-pre-compact.sh:*)"
+            ]
+
+            if settings_local_dst.exists():
+                # Update existing file - merge permissions
+                with open(settings_local_dst, 'r') as f:
+                    try:
+                        local_settings = json.load(f)
+                    except json.JSONDecodeError:
+                        local_settings = {}
+
+                # Ensure permissions structure exists
+                if 'permissions' not in local_settings:
+                    local_settings['permissions'] = {}
+                if 'allow' not in local_settings['permissions']:
+                    local_settings['permissions']['allow'] = []
+
+                # Add missing Workshop permissions
+                existing_allow = local_settings['permissions']['allow']
+                added_perms = []
+                for perm in required_workshop_permissions:
+                    if perm not in existing_allow:
+                        existing_allow.append(perm)
+                        added_perms.append(perm)
+
+                if added_perms:
+                    with open(settings_local_dst, 'w') as f:
+                        json.dump(local_settings, f, indent=2)
+                    files_copied.append(f'settings.local.json (updated with {len(added_perms)} permissions)')
+            else:
+                # Create new file
                 minimal_local_settings = {
                     "permissions": {
-                        "allow": [
-                            "Bash(workshop:*)",
-                            "Bash(workshop context)",
-                            "Bash(workshop info)"
-                        ],
+                        "allow": required_workshop_permissions,
                         "deny": [],
                         "ask": []
                     }

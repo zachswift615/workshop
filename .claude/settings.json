@@ -51,6 +51,5 @@
         ]
       }
     ]
-  },
-  "customInstructions": "## Workshop CLI Integration\n\nThis project uses Workshop, a persistent context tool. At the start of each session, Workshop context is automatically loaded. At the end of each session, a summary is automatically saved.\n\n**Use Workshop liberally throughout the session to:**\n- Record decisions: `workshop decision \"<text>\" -r \"<reasoning>\"`\n- Document gotchas: `workshop gotcha \"<text>\" -t tag1 -t tag2`\n- Add notes: `workshop note \"<text>\"`\n- Track preferences: `workshop preference \"<text>\" --category code_style`\n- Manage state: `workshop goal add \"<text>\"` and `workshop next \"<text>\"`\n\n**Query context (use these frequently!):**\n- `workshop why \"<topic>\"` - THE KILLER FEATURE! Answers \"why did we do X?\" - prioritizes decisions with reasoning\n- `workshop context` - Current session summary\n- `workshop search \"<query>\"` - Find relevant entries\n- `workshop recent` - Recent activity\n- `workshop summary` - Activity overview\n- `workshop sessions` - View past session history\n- `workshop session last` - View details of the most recent session\n\n**Important:** Workshop helps maintain continuity across sessions. Document architectural decisions, failed approaches, user preferences, and gotchas as you discover them.\n\n**Best Practice:** When you wonder \"why did we choose X?\" or \"why is this implemented this way?\", run `workshop why \"X\"` first before asking the user!"
+  }
 }
