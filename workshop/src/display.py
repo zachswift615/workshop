@@ -16,7 +16,11 @@ console = Console()
 
 
 def format_timestamp(iso_timestamp: str) -> str:
-    """Format ISO timestamp to relative time (e.g., '2 hours ago')"""
+    """
+    Format ISO timestamp to relative time (e.g., '2 hours ago').
+
+    Timestamps are stored as UTC (naive datetime). This converts to local time for display.
+    """
     dt = datetime.fromisoformat(iso_timestamp)
     # Make both datetimes timezone-aware or both naive for comparison
     if dt.tzinfo is not None:
@@ -24,8 +28,13 @@ def format_timestamp(iso_timestamp: str) -> str:
         from datetime import timezone
         now = datetime.now(timezone.utc)
     else:
-        # dt is naive, use naive now
-        now = datetime.now()
+        # dt is naive - assume it's UTC (standard storage practice)
+        # Convert to local time for display
+        from datetime import timezone
+        dt_utc = dt.replace(tzinfo=timezone.utc)
+        dt = dt_utc.astimezone()
+        now = datetime.now().astimezone()
+
     diff = now - dt
 
     if diff.days > 0:

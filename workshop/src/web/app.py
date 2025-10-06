@@ -52,10 +52,26 @@ def get_store():
         return WorkshopStorageSQLite()
 
 def format_timestamp(timestamp_str):
-    """Format timestamp as relative time"""
+    """
+    Format timestamp as relative time.
+
+    Timestamps are stored as UTC (naive datetime). This converts to local time for display.
+    """
     try:
         dt = datetime.fromisoformat(timestamp_str)
-        now = datetime.now()
+
+        # Handle timezone-aware vs naive timestamps
+        if dt.tzinfo is None:
+            # Naive timestamp - assume UTC, convert to local
+            from datetime import timezone
+            dt_utc = dt.replace(tzinfo=timezone.utc)
+            dt = dt_utc.astimezone()
+            now = datetime.now().astimezone()
+        else:
+            # Timezone-aware timestamp
+            from datetime import timezone
+            now = datetime.now(timezone.utc)
+
         diff = now - dt
 
         if diff.days > 365:
