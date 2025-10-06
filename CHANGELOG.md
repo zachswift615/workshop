@@ -5,6 +5,12 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2025-10-05
+
+### Fixed
+- Fix packaging: include src.storage package in distribution
+
+
 ## [2.0.0] - 2025-10-05
 
 ### Added
@@ -380,3 +386,4 @@ Workshop v1.0.0 marks the transition from prototype to production-ready software
 [1.0.6]: https://github.com/zachswift615/workshop/compare/v1.0.5...v1.0.6
 [1.1.0]: https://github.com/zachswift615/workshop/compare/v1.0.6...v1.1.0
 [2.0.0]: https://github.com/zachswift615/workshop/compare/v1.1.0...v2.0.0
+[2.0.1]: https://github.com/zachswift615/workshop/compare/v2.0.0...v2.0.1
