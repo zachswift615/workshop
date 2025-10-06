@@ -5,6 +5,12 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.7] - 2025-10-06
+
+### Fixed
+- Fix: Add UTF-8 encoding to test file read for Windows compatibility
+
+
 ## [2.2.6] - 2025-10-06
 
 ### Added
@@ -464,3 +470,4 @@ Workshop v1.0.0 marks the transition from prototype to production-ready software
 [2.2.4]: https://github.com/zachswift615/workshop/compare/v2.2.3...v2.2.4
 [2.2.5]: https://github.com/zachswift615/workshop/compare/v2.2.4...v2.2.5
 [2.2.6]: https://github.com/zachswift615/workshop/compare/v2.2.5...v2.2.6
+[2.2.7]: https://github.com/zachswift615/workshop/compare/v2.2.6...v2.2.7
