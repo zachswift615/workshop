@@ -868,6 +868,25 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 shutil.copy2(readme_src, readme_dst)
                 files_copied.append('README.md')
 
+            # Create settings.local.json if it doesn't exist
+            # This file is REQUIRED for Claude Code to load settings.json
+            settings_local_dst = local_claude_dir / "settings.local.json"
+            if not settings_local_dst.exists():
+                minimal_local_settings = {
+                    "permissions": {
+                        "allow": [
+                            "Bash(workshop:*)",
+                            "Bash(workshop context)",
+                            "Bash(workshop info)"
+                        ],
+                        "deny": [],
+                        "ask": []
+                    }
+                }
+                with open(settings_local_dst, 'w') as f:
+                    json.dump(minimal_local_settings, f, indent=2)
+                files_copied.append('settings.local.json (created)')
+
             if files_copied:
                 success_messages.append(f"✓ Local configuration updated: .claude/")
                 for file in files_copied:
