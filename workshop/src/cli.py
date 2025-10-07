@@ -566,12 +566,9 @@ def clear(before_date, entry_type):
         count = len(entries_to_delete)
     else:
         # Count all entries before date
-        with store._get_connection() as conn:
-            cursor = conn.execute(
-                "SELECT COUNT(*) as count FROM entries WHERE timestamp < ?",
-                (cutoff_date.isoformat(),)
-            )
-            count = cursor.fetchone()['count']
+        all_entries = store.get_entries()
+        entries_to_delete = [e for e in all_entries if datetime.fromisoformat(e['timestamp']) < cutoff_date]
+        count = len(entries_to_delete)
 
     if count == 0:
         display_info(f"No entries found before {cutoff_date.strftime('%Y-%m-%d')}")

@@ -224,3 +224,217 @@ class TestDisplayFunctions:
         # If we were in timezone UTC-5 and it's 14:00 local (19:00 UTC), a timestamp
         # from "now" in naive UTC (19:00) would incorrectly show as 5-19 hours off
         # This test ensures we're converting properly regardless of local timezone
+
+
+class TestDisplayFunctionsOutput:
+    """Tests for display output functions using mock console"""
+
+    def test_display_entry(self):
+        """Test display_entry shows entry with formatted output"""
+        from src.display import display_entry
+        from unittest.mock import patch
+        from datetime import datetime, timezone
+
+        entry = {
+            'id': 'test-id',
+            'type': 'note',
+            'content': 'Test content',
+            'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            'tags': ['test'],
+            'branch': 'main',
+            'reasoning': None
+        }
+
+        # Mock the console to capture output
+        with patch('src.display.console.print') as mock_print:
+            display_entry(entry)
+            # Verify it was called
+            assert mock_print.called
+
+    def test_display_entries_empty(self):
+        """Test display_entries with empty list"""
+        from src.display import display_entries
+        from unittest.mock import patch
+
+        with patch('src.display.console.print') as mock_print:
+            display_entries([])
+            # Should print "No entries found"
+            mock_print.assert_called()
+
+    def test_display_entries_with_data(self):
+        """Test display_entries with entries"""
+        from src.display import display_entries
+        from unittest.mock import patch
+        from datetime import datetime, timezone
+
+        entries = [
+            {
+                'id': 'test-1',
+                'type': 'note',
+                'content': 'First note',
+                'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                'tags': [],
+                'reasoning': None
+            },
+            {
+                'id': 'test-2',
+                'type': 'decision',
+                'content': 'Second decision',
+                'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                'tags': [],
+                'reasoning': 'Because reasons'
+            }
+        ]
+
+        with patch('src.display.console.print') as mock_print:
+            display_entries(entries)
+            # Should be called multiple times (header + entries)
+            assert mock_print.call_count >= 2
+
+    def test_display_context(self):
+        """Test display_context shows session summary"""
+        from src.display import display_context
+        from unittest.mock import patch
+        from datetime import datetime, timezone
+
+        recent_entries = [
+            {
+                'id': 'test-1',
+                'type': 'note',
+                'content': 'Latest activity',
+                'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                'tags': []
+            }
+        ]
+
+        current_state = {
+            'goals': [{'content': 'Test goal'}],
+            'next_steps': [{'content': 'Test step'}]
+        }
+
+        preferences = {
+            'code_style': [{'content': 'Use type hints'}]
+        }
+
+        with patch('src.display.console.print') as mock_print:
+            display_context(recent_entries, current_state, preferences)
+            # Should print context summary
+            assert mock_print.called
+
+    def test_display_why_results_no_results(self):
+        """Test display_why_results with no matching entries"""
+        from src.display import display_why_results
+        from unittest.mock import patch
+
+        with patch('src.display.console.print') as mock_print:
+            display_why_results([], 'test query')
+            # Should print "No context found"
+            assert mock_print.called
+
+    def test_display_why_results_with_results(self):
+        """Test display_why_results with matching entries"""
+        from src.display import display_why_results
+        from unittest.mock import patch
+        from datetime import datetime, timezone
+
+        entries = [
+            {
+                'id': 'test-1',
+                'type': 'decision',
+                'content': 'Use PostgreSQL',
+                'reasoning': 'Better for relational data',
+                'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                'tags': ['database'],
+                'branch': 'main',
+                'files': ['db.py']
+            }
+        ]
+
+        with patch('src.display.console.print') as mock_print:
+            display_why_results(entries, 'PostgreSQL')
+            # Should print the "why" formatted output
+            assert mock_print.called
+            # Verify content is in output
+            calls_str = str(mock_print.call_args_list)
+            assert 'PostgreSQL' in calls_str or any('PostgreSQL' in str(call) for call in mock_print.call_args_list)
+
+    def test_display_preferences(self):
+        """Test display_preferences shows preferences by category"""
+        from src.display import display_preferences
+        from unittest.mock import patch
+
+        preferences = {
+            'code_style': [
+                {'content': 'Use type hints'},
+                {'content': 'Follow PEP 8'}
+            ],
+            'libraries': [
+                {'content': 'Prefer SQLAlchemy'}
+            ]
+        }
+
+        with patch('src.display.console.print') as mock_print:
+            display_preferences(preferences)
+            assert mock_print.called
+
+    def test_display_preferences_empty(self):
+        """Test display_preferences with no preferences"""
+        from src.display import display_preferences
+        from unittest.mock import patch
+
+        with patch('src.display.console.print') as mock_print:
+            display_preferences({})
+            # Should print "No preferences"
+            assert mock_print.called
+
+    def test_display_current_state(self):
+        """Test display_current_state shows goals and next steps"""
+        from src.display import display_current_state
+        from unittest.mock import patch
+
+        state = {
+            'goals': [{'content': 'Build feature'}],
+            'next_steps': [{'content': 'Write tests'}],
+            'blockers': [{'content': 'API rate limit'}]
+        }
+
+        with patch('src.display.console.print') as mock_print:
+            display_current_state(state)
+            assert mock_print.called
+
+    def test_display_current_state_empty(self):
+        """Test display_current_state with no state"""
+        from src.display import display_current_state
+        from unittest.mock import patch
+
+        with patch('src.display.console.print') as mock_print:
+            display_current_state({})
+            # Should print "No active goals or next steps"
+            assert mock_print.called
+
+    def test_success_message(self):
+        """Test success message display"""
+        from src.display import success
+        from unittest.mock import patch
+
+        with patch('src.display.console.print') as mock_print:
+            success("Operation completed")
+            assert mock_print.called
+
+    def test_error_message(self):
+        """Test error message display"""
+        from src.display import error
+        from unittest.mock import patch
+
+        with patch('src.display.console.print') as mock_print:
+            error("Something went wrong")
+            assert mock_print.called
+
+    def test_info_message(self):
+        """Test info message display"""
+        from src.display import info
+        from unittest.mock import patch
+
+        with patch('src.display.console.print') as mock_print:
+            info("Here's some information")
+            assert mock_print.called
