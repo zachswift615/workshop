@@ -5,6 +5,12 @@ All notable changes to Workshop will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2] - 2025-10-07
+
+### Fixed
+- Fix timestamp parsing bug with Z suffix in Claude Code JSONL files
+
+
 ## [2.3.1] - 2025-10-07
 
 ### Fixed
@@ -508,3 +514,4 @@ Workshop v1.0.0 marks the transition from prototype to production-ready software
 [2.2.9]: https://github.com/zachswift615/workshop/compare/v2.2.8...v2.2.9
 [2.3.0]: https://github.com/zachswift615/workshop/compare/v2.2.9...v2.3.0
 [2.3.1]: https://github.com/zachswift615/workshop/compare/v2.3.0...v2.3.1
+[2.3.2]: https://github.com/zachswift615/workshop/compare/v2.3.1...v2.3.2
