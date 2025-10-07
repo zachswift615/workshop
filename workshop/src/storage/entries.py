@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import uuid4, UUID
 
+from dateutil import parser as date_parser
 from sqlalchemy import select, or_, and_
 from sqlalchemy.orm import Session
 
@@ -66,7 +67,7 @@ class EntriesManager:
             type=entry_type,
             content=content,
             reasoning=reasoning,
-            timestamp=datetime.fromisoformat(timestamp) if timestamp else datetime.utcnow(),
+            timestamp=date_parser.parse(timestamp) if timestamp else datetime.utcnow(),
             branch=branch or None,
             commit_hash=commit_hash or None,
             entry_metadata=json.dumps(metadata) if metadata else None

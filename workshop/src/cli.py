@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
+from dateutil import parser as date_parser
 
 from . import __version__
 from .storage_sqlite import WorkshopStorageSQLite
@@ -562,12 +563,12 @@ def clear(before_date, entry_type):
     # Get count of entries that will be deleted
     if entry_type:
         entries = store.get_entries(entry_type=entry_type)
-        entries_to_delete = [e for e in entries if datetime.fromisoformat(e['timestamp']) < cutoff_date]
+        entries_to_delete = [e for e in entries if date_parser.parse(e['timestamp']) < cutoff_date]
         count = len(entries_to_delete)
     else:
         # Count all entries before date
         all_entries = store.get_entries()
-        entries_to_delete = [e for e in all_entries if datetime.fromisoformat(e['timestamp']) < cutoff_date]
+        entries_to_delete = [e for e in all_entries if date_parser.parse(e['timestamp']) < cutoff_date]
         count = len(entries_to_delete)
 
     if count == 0:
@@ -1239,15 +1240,15 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
             # Filter by date if specified
             if since:
                 if since == "last-import" and last_import:
-                    cutoff = datetime.fromisoformat(last_import['import_timestamp'])
+                    cutoff = date_parser.parse(last_import['import_timestamp'])
                 else:
                     try:
-                        cutoff = datetime.fromisoformat(since)
+                        cutoff = date_parser.parse(since)
                     except:
                         error(f"Invalid date format: {since}")
                         return
 
-                entry_time = datetime.fromisoformat(entry.timestamp)
+                entry_time = date_parser.parse(entry.timestamp)
                 if entry_time < cutoff:
                     continue
 
@@ -1352,7 +1353,7 @@ def import_status():
 
     for record in history:
         jsonl_name = Path(record['jsonl_path']).name
-        import_time = datetime.fromisoformat(record['import_timestamp'])
+        import_time = date_parser.parse(record['import_timestamp'])
         time_ago = _format_time_ago(import_time)
 
         click.echo(f"• {jsonl_name}")

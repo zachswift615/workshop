@@ -299,3 +299,37 @@ def test_entry_ordering(temp_storage):
     assert entries[0]["content"] == "Third"
     assert entries[1]["content"] == "Second"
     assert entries[2]["content"] == "First"
+
+
+def test_timestamp_with_z_suffix(temp_storage):
+    """
+    Regression test for bug where timestamps with 'Z' suffix from Claude Code JSONL files
+    caused ValueError: Invalid isoformat string during import.
+
+    Bug report: workshop import --execute failed with:
+    ValueError: Invalid isoformat string: '2025-10-06T19:59:59.997Z'
+    """
+    # Test various timestamp formats that Claude Code might generate
+    timestamp_formats = [
+        "2025-10-06T19:59:59.997Z",  # Claude Code format with Z suffix
+        "2025-10-06T19:59:59.997+00:00",  # Standard ISO format with timezone
+        "2025-10-06T19:59:59Z",  # Without milliseconds but with Z
+        "2025-10-06T19:59:59",  # Without timezone
+    ]
+
+    for i, ts in enumerate(timestamp_formats):
+        # This should not raise ValueError anymore
+        entry = temp_storage.add_entry(
+            entry_type="note",
+            content=f"Test note with timestamp format {i}",
+            timestamp=ts
+        )
+
+        assert entry["type"] == "note"
+        assert entry["content"] == f"Test note with timestamp format {i}"
+        assert "timestamp" in entry
+        assert "id" in entry
+
+    # Verify all entries were added successfully
+    entries = temp_storage.get_entries()
+    assert len(entries) >= len(timestamp_formats)

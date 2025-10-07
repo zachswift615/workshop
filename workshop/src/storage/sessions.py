@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 
+from dateutil import parser as date_parser
 from sqlalchemy import select, String
 from sqlalchemy.orm import Session as DBSession
 
@@ -73,8 +74,8 @@ class SessionsManager:
         session_model = SessionModel(
             id=UUID(session_id),
             project_id=self.project_id,
-            start_time=datetime.fromisoformat(start_time),
-            end_time=datetime.fromisoformat(end_time),
+            start_time=date_parser.parse(start_time),
+            end_time=date_parser.parse(end_time),
             duration_minutes=duration_minutes,
             summary=summary or None,
             branch=branch or None,

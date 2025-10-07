@@ -157,6 +157,39 @@ def test_sessions(storage):
 
     # Retrieve sessions
     sessions = storage.get_sessions()
+
+
+def test_sessions_with_z_suffix_timestamps(storage):
+    """
+    Regression test for sessions with 'Z' suffix timestamps from Claude Code.
+
+    This tests the fix for the bug where session timestamps with 'Z' suffix
+    would cause ValueError during import.
+    """
+    from uuid import uuid4
+    test_session_id = str(uuid4())
+
+    # Claude Code uses timestamps with Z suffix
+    session = storage.add_session(
+        session_id=test_session_id,
+        start_time="2025-10-06T19:59:59.997Z",  # Z suffix format
+        end_time="2025-10-06T20:30:00.123Z",
+        duration_minutes=30,
+        files_modified=["test.py"],
+        commands_run=["workshop import --execute"],
+        workshop_entries={"gotchas": 5},
+        user_requests=["Import sessions from Claude Code"],
+        summary="Testing Z-suffix timestamp handling",
+        branch="main",
+        reason="regression test"
+    )
+
+    # Should not raise ValueError anymore
+    assert session["id"] == test_session_id
+    assert session["summary"] == "Testing Z-suffix timestamp handling"
+
+    # Verify session can be retrieved
+    sessions = storage.get_sessions()
     assert len(sessions) == 1
 
     # Get by ID
