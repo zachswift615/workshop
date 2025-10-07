@@ -8,7 +8,9 @@
 
 **Give Claude Code long-term memory and project knowledge.**
 
-Workshop is a production-ready context management system that gives Claude Code institutional memory. It automatically captures decisions, gotchas, and learnings from your conversations—and can even import months of past session history.
+Workshop is a production-ready context management system (using RAG - Retrieval-Augmented Generation) that gives Claude Code institutional memory. It automatically captures decisions, gotchas, and learnings from your conversations—and can even import months of past session history.
+
+**Perfect for:** Persistent context, project knowledge base, fine-tuning training data, architectural decision records (ADR).
 
 No manual note-taking. No context loss. Just continuous, persistent project knowledge.
 
@@ -25,6 +27,7 @@ No manual note-taking. No context loss. Just continuous, persistent project know
 - 🧠 **Answers "why" questions** by searching past decisions
 - 📥 **Imports historical sessions** to backfill months of knowledge
 - 🎯 **Tracks goals and blockers** across sessions
+- 🔬 **Generates training data** for fine-tuning local LLMs (optional)
 
 **Result**: Claude remembers everything about your project, even weeks or months later.
 
@@ -84,7 +87,7 @@ Workshop analyzes past sessions using pattern matching to extract:
 **This means Workshop can learn from conversations you had weeks or months ago**, giving Claude instant access to all your project's history.
 
 ### 3. **Smart Search & Context**
-Claude can query Workshop to answer questions:
+Claude can query Workshop's knowledge base to answer questions:
 
 ```bash
 workshop why "using zustand"     # Why did we choose this?
@@ -484,6 +487,43 @@ workshop context
 #  - Discovered rate limiting issue with API
 #  - Next step: Add retry logic with exponential backoff"
 ```
+
+---
+
+## 🧠 Advanced Uses
+
+### RAG (Retrieval-Augmented Generation)
+
+Workshop is a **RAG system** for Claude Code. Unlike Claude Projects (web) which has built-in RAG, Claude Code (CLI) doesn't provide persistent context across sessions. Workshop fills this gap by:
+
+- **Automatic retrieval**: Session hooks load relevant context when Claude starts
+- **Smart search**: Full-text search (SQLite FTS5) retrieves relevant entries
+- **Context preservation**: Decisions, gotchas, and learnings persist across sessions
+- **No token overhead**: Only relevant context is included (not entire knowledge base)
+
+**Workshop gives Claude Code the same RAG capabilities that Claude Projects has**, optimized for CLI workflows.
+
+### Fine-tuning Training Data
+
+Your Workshop entries are **perfect training data** for fine-tuning local LLMs:
+
+- **Decisions with reasoning** → Q&A pairs ("Why did we choose X?" → "Because Y")
+- **Gotchas** → Domain-specific constraints and warnings
+- **Preferences** → Coding style and architectural patterns
+- **Session summaries** → Project evolution and context
+
+Check out [`finetune/`](./finetune) for a complete pipeline to:
+1. **Generate training data** from your codebase + Workshop entries
+2. **Fine-tune Qwen 2.5 Coder 7B** (or similar) using LoRA
+3. **Run locally** on consumer GPUs (RTX 4060 works!)
+
+**Two approaches:**
+- **RAG** (Workshop): Retrieve knowledge at query time
+- **Fine-tuning**: Bake knowledge into model weights
+
+**Best results**: Use both! Fine-tune for architectural patterns, use Workshop for latest decisions.
+
+See [finetune/QUICKSTART.md](./finetune/QUICKSTART.md) for a step-by-step guide.
 
 ---
 

@@ -36,6 +36,7 @@ ENV/
 # Workshop data - keep your context private
 .workshop/
 pattern_extraction_analysis.md
+IDEAS.md
 
 # OS
 .DS_Store

@@ -1,0 +1,47 @@
+{
+  "comment": "Copy this to config.json and customize for your project",
+
+  "project_name": "MyProject",
+
+  "source_directories": [
+    "../src",
+    "../lib"
+  ],
+
+  "file_patterns": [
+    "**/*.py",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js"
+  ],
+
+  "workshop_db": "../.workshop/workshop.db",
+
+  "output_file": "training.jsonl",
+
+  "max_files": null,
+
+  "skip_code_analysis": false,
+
+  "llm_backend": {
+    "comment": "Choose 'claude' (fast, ~$1) or 'lm-studio' (free, slower)",
+    "type": "claude",
+    "api_key": "$ANTHROPIC_API_KEY",
+    "lm_studio_url": "http://localhost:1234/v1"
+  },
+
+  "model": {
+    "base_model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "output_dir": "./lora-weights",
+    "epochs": 3,
+    "learning_rate": 0.0002
+  },
+
+  "examples": [
+    {
+      "instruction": "What is the main purpose of this project?",
+      "context": "Project overview",
+      "response": "This project does X, Y, and Z..."
+    }
+  ]
+}
