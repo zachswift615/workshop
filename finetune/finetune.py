@@ -9,17 +9,17 @@ from transformers import (
     AutoTokenizer,
     TrainingArguments,
     Trainer,
-    DataCollatorForLanguageModeling
+    DataCollatorForLanguageModeling,
 )
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from datasets import load_dataset
-import bitsandbytes as bnb
+
 
 def format_prompt(example):
     """Format training example into prompt template."""
-    instruction = example['instruction']
-    input_text = example['input']
-    output = example['output']
+    instruction = example["instruction"]
+    input_text = example["input"]
+    output = example["output"]
 
     if input_text:
         prompt = f"""<|im_start|>system
@@ -40,6 +40,7 @@ You are a helpful AI assistant with deep knowledge of the Workshop project.<|im_
 
     return {"text": prompt}
 
+
 def main():
     print("=" * 80)
     print("Workshop Fine-tuning - Qwen 2.5 Coder 7B with LoRA")
@@ -56,7 +57,7 @@ def main():
 
     # Load dataset
     print("\n1. Loading training data...")
-    dataset = load_dataset('json', data_files=training_file, split='train')
+    dataset = load_dataset("json", data_files=training_file, split="train")
     dataset = dataset.map(format_prompt, remove_columns=dataset.column_names)
     print(f"   ✓ Loaded {len(dataset)} examples")
 
@@ -68,12 +69,7 @@ def main():
 
     # Tokenize
     def tokenize(example):
-        return tokenizer(
-            example["text"],
-            truncation=True,
-            max_length=2048,
-            padding="max_length"
-        )
+        return tokenizer(example["text"], truncation=True, max_length=2048, padding="max_length")
 
     tokenized_dataset = dataset.map(tokenize, remove_columns=["text"])
     print("   ✓ Tokenized dataset")
@@ -81,11 +77,7 @@ def main():
     # Load model in 4-bit (saves memory)
     print("\n3. Loading base model (4-bit quantization)...")
     model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        load_in_4bit=True,
-        torch_dtype=torch.float16,
-        device_map="auto",
-        trust_remote_code=True
+        model_name, load_in_4bit=True, torch_dtype=torch.float16, device_map="auto", trust_remote_code=True
     )
     model = prepare_model_for_kbit_training(model)
     print("   ✓ Model loaded")
@@ -98,7 +90,7 @@ def main():
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
         lora_dropout=0.05,
         bias="none",
-        task_type="CAUSAL_LM"
+        task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -122,10 +114,7 @@ def main():
     )
 
     # Data collator
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer,
-        mlm=False
-    )
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     # Trainer
     trainer = Trainer(
@@ -154,5 +143,6 @@ def main():
     print("\nNext: Run inference.py to test the model")
     print("=" * 80)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

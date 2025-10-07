@@ -7,15 +7,17 @@ import json
 from pathlib import Path
 import sqlite3
 
+
 def extract_code_examples():
     """Extract meaningful code snippets with explanations."""
     examples = []
 
     # Example: Storage layer
-    examples.append({
-        "instruction": "How does Workshop store entries in the database?",
-        "context": "Workshop uses SQLAlchemy ORM with support for both SQLite and PostgreSQL.",
-        "response": """Workshop stores entries using the EntriesManager class in src/storage/entries.py.
+    examples.append(
+        {
+            "instruction": "How does Workshop store entries in the database?",
+            "context": "Workshop uses SQLAlchemy ORM with support for both SQLite and PostgreSQL.",
+            "response": """Workshop stores entries using the EntriesManager class in src/storage/entries.py.
 
 Key methods:
 - add_entry(): Creates new entries with type, content, reasoning, tags, and files
@@ -34,14 +36,16 @@ Entries are stored in the 'entries' table with fields:
 - branch, commit_hash (git context)
 - entry_metadata (JSON blob)
 
-Related tables: tags, files (many-to-many relationships)"""
-    })
+Related tables: tags, files (many-to-many relationships)""",
+        }
+    )
 
     # Example: CLI structure
-    examples.append({
-        "instruction": "What CLI commands does Workshop provide?",
-        "context": "Workshop uses Click framework for CLI",
-        "response": """Workshop CLI commands (src/cli.py):
+    examples.append(
+        {
+            "instruction": "What CLI commands does Workshop provide?",
+            "context": "Workshop uses Click framework for CLI",
+            "response": """Workshop CLI commands (src/cli.py):
 
 **Write commands:**
 - workshop note "text" - Add a note
@@ -66,19 +70,22 @@ Related tables: tags, files (many-to-many relationships)"""
 **Other:**
 - workshop web - Launch web UI
 - workshop export - Export context
-- workshop import - Import from JSONL transcripts"""
-    })
+- workshop import - Import from JSONL transcripts""",
+        }
+    )
 
     return examples
+
 
 def extract_architecture_knowledge():
     """Extract architectural decisions and patterns."""
     examples = []
 
-    examples.append({
-        "instruction": "Explain Workshop's architecture",
-        "context": "Workshop is a context management tool for Claude Code",
-        "response": """Workshop Architecture:
+    examples.append(
+        {
+            "instruction": "Explain Workshop's architecture",
+            "context": "Workshop is a context management tool for Claude Code",
+            "response": """Workshop Architecture:
 
 **Core Components:**
 1. Storage Layer (src/storage/)
@@ -107,10 +114,12 @@ def extract_architecture_knowledge():
 - UTC timestamps (naive) stored, converted to local for display
 - SQLAlchemy ORM for database abstraction
 - Project detection via .git, package.json, pyproject.toml
-- Workspace can be per-project or global"""
-    })
+- Workspace can be per-project or global""",
+        }
+    )
 
     return examples
+
 
 def extract_workshop_entries(db_path):
     """Extract actual workshop entries as training examples."""
@@ -123,37 +132,46 @@ def extract_workshop_entries(db_path):
     cursor = conn.cursor()
 
     # Get decisions with reasoning (most valuable)
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT content, reasoning
         FROM entries
         WHERE type = 'decision' AND reasoning IS NOT NULL
         LIMIT 20
-    """)
+    """
+    )
 
     for content, reasoning in cursor.fetchall():
-        examples.append({
-            "instruction": f"Why did we decide to {content.lower()}?",
-            "context": "Workshop project decision",
-            "response": f"Decision: {content}\n\nReasoning: {reasoning}"
-        })
+        examples.append(
+            {
+                "instruction": f"Why did we decide to {content.lower()}?",
+                "context": "Workshop project decision",
+                "response": f"Decision: {content}\n\nReasoning: {reasoning}",
+            }
+        )
 
     # Get gotchas (important constraints)
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT content
         FROM entries
         WHERE type = 'gotcha'
         LIMIT 10
-    """)
+    """
+    )
 
     for (content,) in cursor.fetchall():
-        examples.append({
-            "instruction": "What should I watch out for in Workshop?",
-            "context": "Workshop project gotcha",
-            "response": f"Gotcha: {content}"
-        })
+        examples.append(
+            {
+                "instruction": "What should I watch out for in Workshop?",
+                "context": "Workshop project gotcha",
+                "response": f"Gotcha: {content}",
+            }
+        )
 
     conn.close()
     return examples
+
 
 def format_for_training(examples):
     """Convert to format suitable for fine-tuning."""
@@ -161,14 +179,11 @@ def format_for_training(examples):
 
     for ex in examples:
         # Alpaca format (common for instruction tuning)
-        formatted = {
-            "instruction": ex["instruction"],
-            "input": ex.get("context", ""),
-            "output": ex["response"]
-        }
+        formatted = {"instruction": ex["instruction"], "input": ex.get("context", ""), "output": ex["response"]}
         training_data.append(formatted)
 
     return training_data
+
 
 def main():
     output_dir = Path(__file__).parent
@@ -182,7 +197,7 @@ def main():
     examples.extend(extract_architecture_knowledge())
 
     # Add workshop entries if available
-    db_path = Path(__file__).parent.parent / '.workshop' / 'workshop.db'
+    db_path = Path(__file__).parent.parent / ".workshop" / "workshop.db"
     if db_path.exists():
         examples.extend(extract_workshop_entries(db_path))
         print(f"  Added {len(extract_workshop_entries(db_path))} entries from database")
@@ -192,15 +207,16 @@ def main():
 
     # Save as JSONL (one JSON object per line)
     output_file = output_dir / "workshop_training.jsonl"
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         for item in training_data:
-            f.write(json.dumps(item) + '\n')
+            f.write(json.dumps(item) + "\n")
 
     print(f"\n✓ Created {len(training_data)} training examples")
     print(f"✓ Saved to: {output_file}")
-    print(f"\nNext steps:")
+    print("\nNext steps:")
     print(f"  1. Review {output_file} and add more examples")
-    print(f"  2. Run finetune.py to train the model")
+    print("  2. Run finetune.py to train the model")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

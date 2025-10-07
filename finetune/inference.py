@@ -7,6 +7,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
+
 def load_model(base_model_name="Qwen/Qwen2.5-Coder-7B-Instruct", lora_path="./workshop-qwen-lora"):
     """Load the fine-tuned model."""
     print("Loading model...")
@@ -15,11 +16,7 @@ def load_model(base_model_name="Qwen/Qwen2.5-Coder-7B-Instruct", lora_path="./wo
 
     # Load base model
     base_model = AutoModelForCausalLM.from_pretrained(
-        base_model_name,
-        load_in_4bit=True,
-        torch_dtype=torch.float16,
-        device_map="auto",
-        trust_remote_code=True
+        base_model_name, load_in_4bit=True, torch_dtype=torch.float16, device_map="auto", trust_remote_code=True
     )
 
     # Load LoRA weights
@@ -27,6 +24,7 @@ def load_model(base_model_name="Qwen/Qwen2.5-Coder-7B-Instruct", lora_path="./wo
 
     print("✓ Model loaded\n")
     return model, tokenizer
+
 
 def ask(model, tokenizer, question, context=""):
     """Ask the model a question about Workshop."""
@@ -56,7 +54,7 @@ You are a helpful AI assistant with deep knowledge of the Workshop project.<|im_
             temperature=0.7,
             top_p=0.9,
             do_sample=True,
-            pad_token_id=tokenizer.eos_token_id
+            pad_token_id=tokenizer.eos_token_id,
         )
 
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
@@ -64,6 +62,7 @@ You are a helpful AI assistant with deep knowledge of the Workshop project.<|im_
     response = response.split("<|im_start|>assistant")[-1].strip()
 
     return response
+
 
 def main():
     print("=" * 80)
@@ -79,7 +78,7 @@ def main():
         "How does Workshop store entries?",
         "What CLI commands are available?",
         "Explain Workshop's architecture",
-        "Why did we use SQLAlchemy instead of raw SQL?"
+        "Why did we use SQLAlchemy instead of raw SQL?",
     ]
 
     print("Example questions:")
@@ -89,7 +88,7 @@ def main():
 
     while True:
         question = input("Question: ")
-        if question.lower() in ['quit', 'exit', 'q']:
+        if question.lower() in ["quit", "exit", "q"]:
             break
 
         if not question.strip():
@@ -100,5 +99,6 @@ def main():
         print(f"Answer: {response}\n")
         print("-" * 80 + "\n")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
