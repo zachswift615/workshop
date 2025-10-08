@@ -36,21 +36,15 @@ workshop init
 ```
 
 **Windows:**
-```cmd
+
+> **Requirements:** Git Bash (included with Claude Code installation)
+
+```bash
 pip install claude-workshop
 
 # Add workshop to PATH permanently:
-#
-# In CMD (Command Prompt):
-for /f "delims=" %i in ('python -c "import site; print(site.USER_BASE)"') do setx PATH "%PATH%;%i\Scripts"
-
-# In PowerShell:
-# $userBase = python -c "import site; print(site.USER_BASE)"
-# setx PATH "$env:PATH;$userBase\Scripts"
-
-# In Git Bash:
-# echo 'export PATH="$(python -c \"import site; print(site.USER_BASE)\")/Scripts:$PATH"' >> ~/.bashrc
-# source ~/.bashrc
+echo 'export PATH="$(python -c \"import site; print(site.USER_BASE)\")/Scripts:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 
 # Then open a new terminal and run:
 workshop init
