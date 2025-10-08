@@ -35,17 +35,7 @@ pip install claude-workshop
 workshop init
 ```
 
-**Windows (recommended - handles PATH automatically):**
-```bash
-pip install pipx
-pipx ensurepath
-pipx install claude-workshop
-
-# Open a new terminal, then:
-workshop init
-```
-
-**Windows (alternative - using pip):**
+**Windows:**
 ```cmd
 pip install claude-workshop
 

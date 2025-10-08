@@ -42,18 +42,7 @@ workshop init
 workshop import --execute  # Import your past sessions (optional)
 ```
 
-**Windows (recommended - handles PATH automatically):**
-```bash
-pip install pipx
-pipx ensurepath
-pipx install claude-workshop
-
-# Open a new terminal, then:
-workshop init
-workshop import --execute  # Import your past sessions (optional)
-```
-
-**Windows (alternative - using pip):**
+**Windows:**
 ```cmd
 pip install claude-workshop
 
