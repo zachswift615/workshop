@@ -810,26 +810,25 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 with open(settings_src, 'r') as f:
                     template_settings = json.load(f)
 
-                # Modify hooks to use platform-specific paths
-                # Note: On Windows, hooks cause Claude Code to freeze, so we skip them
-                if 'hooks' in template_settings and not is_windows:
-                    hooks = template_settings['hooks']
-                    for hook_type in hooks:
-                        for hook_config in hooks[hook_type]:
+                # Extract hooks from template (we'll add them to settings.local.json instead)
+                # This prevents duplicate hook execution
+                hooks_config = template_settings.pop('hooks', None)
+
+                # Modify hooks for platform if they exist
+                if hooks_config and not is_windows:
+                    # Process hooks for Unix
+                    for hook_type in hooks_config:
+                        for hook_config in hooks_config[hook_type]:
                             for hook in hook_config.get('hooks', []):
                                 if hook.get('type') == 'command':
                                     cmd = hook['command']
-
                                     # Remove leading ./ for cleaner paths
                                     if cmd.startswith('./'):
                                         cmd = cmd[2:]
-
-                                    # Unix: use relative paths as-is
                                     hook['command'] = cmd
-
-                # On Windows, remove hooks entirely (they cause freezing)
-                if is_windows and 'hooks' in template_settings:
-                    del template_settings['hooks']
+                elif is_windows:
+                    # On Windows, disable hooks entirely (they cause freezing)
+                    hooks_config = None
 
                 if settings_dst.exists():
                     with open(settings_dst, 'r') as f:
@@ -984,8 +983,9 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 # CRITICAL: Add hooks to settings.local.json
                 # Claude Code reads settings.local.json FIRST if it exists,
                 # ignoring settings.json entirely, so hooks must be here
-                if settings_src.exists():
-                    local_settings['hooks'] = template_settings.get('hooks', {})
+                # (hooks_config is None on Windows to disable them)
+                if hooks_config:
+                    local_settings['hooks'] = hooks_config
 
                 # Ensure permissions structure exists
                 if 'permissions' not in local_settings:
@@ -1018,9 +1018,9 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                         "ask": []
                     }
                 }
-                # Add hooks if available
-                if settings_src.exists():
-                    minimal_local_settings['hooks'] = template_settings.get('hooks', {})
+                # Add hooks if available (None on Windows)
+                if hooks_config:
+                    minimal_local_settings['hooks'] = hooks_config
 
                 with open(settings_local_dst, 'w') as f:
                     json.dump(minimal_local_settings, f, indent=2)
