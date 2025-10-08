@@ -822,10 +822,19 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                                     # Replace .sh with appropriate extension
                                     if '.sh' in cmd:
                                         cmd = cmd.replace('.sh', script_ext)
-                                    # Replace path separators
+
+                                    # On Windows, use absolute paths (relative paths don't work reliably)
                                     if is_windows:
+                                        # Convert ./.claude/script.bat to C:\path\to\project\.claude\script.bat
+                                        if cmd.startswith('./'):
+                                            cmd = cmd[2:]  # Remove ./
                                         cmd = cmd.replace('/', '\\')
-                                    hook['command'] = cmd
+                                        # Make absolute path
+                                        abs_path = str(Path.cwd() / cmd)
+                                        hook['command'] = abs_path
+                                    else:
+                                        # Unix: keep relative paths as-is
+                                        hook['command'] = cmd
 
                 if settings_dst.exists():
                     with open(settings_dst, 'r') as f:
