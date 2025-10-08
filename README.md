@@ -46,12 +46,18 @@ workshop import --execute  # Import your past sessions (optional)
 ```cmd
 pip install claude-workshop
 
-# Add workshop to PATH permanently (run in CMD):
+# Add workshop to PATH permanently:
+#
+# In CMD (Command Prompt):
 for /f "delims=" %i in ('python -c "import site; print(site.USER_BASE)"') do setx PATH "%PATH%;%i\Scripts"
 
-# Or in PowerShell:
+# In PowerShell:
 # $userBase = python -c "import site; print(site.USER_BASE)"
 # setx PATH "$env:PATH;$userBase\Scripts"
+
+# In Git Bash:
+# echo 'export PATH="$(python -c \"import site; print(site.USER_BASE)\")/Scripts:$PATH"' >> ~/.bashrc
+# source ~/.bashrc
 
 # Then open a new terminal and run:
 workshop init
