@@ -17,5 +17,5 @@ echo '{
   "role": "system_context",
   "message": "📝 Workshop Context Available",
   "details": "Use the `workshop` CLI to access project context. Key commands:\n\n- `workshop context` - View session summary\n- `workshop search <query>` - Search entries\n- `workshop note <text>` - Add a note\n- `workshop decision <text> -r <reasoning>` - Record a decision\n- `workshop gotcha <text>` - Record a gotcha/constraint\n\nWorkshop maintains context across sessions. Use it liberally to:\n- Record decisions and their reasoning\n- Document gotchas and constraints\n- Track goals and next steps\n- Save user preferences\n\nCurrent context:",
-  "context": '"$(workshop context 2>&1 | sed 's/"/\\"/g' | tr '\n' ' ')"'"
+  "context": '"$(PYTHONIOENCODING=utf-8 workshop context 2>&1 | sed 's/"/\\"/g' | tr '\n' ' ')"'"
 }'

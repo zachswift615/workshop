@@ -292,6 +292,52 @@ See `.claude/README.md` for details.
 - `workshop info` - Show workspace information
 - `workshop init` - Set up Claude Code integration
 
+## Platform-Specific Notes
+
+### Windows
+
+Workshop works on Windows, but there are a few important setup notes:
+
+#### Automatic Fixes (v2.3.0+)
+Recent versions include automatic Windows compatibility:
+- **UTF-8 Encoding**: Automatically configured for emoji display (✓, 📝, etc.)
+- **Timestamp Parsing**: Handles Claude Code's timestamp format with 'Z' suffix
+
+#### Claude Code Integration
+When running `workshop init`, Workshop sets up hooks in Claude Code's settings files. On Windows, pay attention to:
+
+**Settings File Priority:**
+- If `.claude/settings.local.json` exists, hooks **must** be defined there
+- Claude Code reads `settings.local.json` first if it exists, ignoring hooks in `settings.json`
+- Run `workshop init` to automatically configure the correct file
+
+**Common Issue:** "Workshop works manually but doesn't auto-load?"
+→ Check if `.claude/settings.local.json` exists. If yes, run `workshop init` again to add hooks there.
+
+**Batch Script Support:**
+The session hooks work with Git Bash, WSL, or any bash-compatible shell on Windows. If you need a pure Windows batch script:
+1. Create `.claude/workshop-session-start.bat`:
+   ```batch
+   @echo off
+   workshop context
+   ```
+2. Update hooks in `.claude/settings.local.json` (or `.claude/settings.json`):
+   ```json
+   {
+     "hooks": {
+       "SessionStart": [{
+         "source": "startup",
+         "hooks": [{
+           "type": "command",
+           "command": "C:\\Users\\<USERNAME>\\<PROJECT>\\.claude\\workshop-session-start.bat"
+         }]
+       }]
+     }
+   }
+   ```
+
+**Path Format:** Use double backslashes (`\\`) in JSON hook configurations on Windows.
+
 ## License
 
 MIT License - see LICENSE file for details.

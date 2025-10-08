@@ -796,6 +796,11 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
             # Copy files
             files_copied = []
 
+            # Detect platform for script selection
+            is_windows = platform.system() == 'Windows'
+            script_ext = '.bat' if is_windows else '.sh'
+            path_sep = '\\' if is_windows else '/'
+
             # Copy settings.json (merge if exists)
             settings_src = template_dir / "settings.json"
             settings_dst = local_claude_dir / "settings.json"
@@ -803,6 +808,23 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
             if settings_src.exists():
                 with open(settings_src, 'r') as f:
                     template_settings = json.load(f)
+
+                # Modify hooks to use platform-specific paths and script extensions
+                if 'hooks' in template_settings:
+                    hooks = template_settings['hooks']
+                    # Update all hook commands to use correct extension and path separator
+                    for hook_type in hooks:
+                        for hook_config in hooks[hook_type]:
+                            for hook in hook_config.get('hooks', []):
+                                if hook.get('type') == 'command':
+                                    cmd = hook['command']
+                                    # Replace .sh with appropriate extension
+                                    if '.sh' in cmd:
+                                        cmd = cmd.replace('.sh', script_ext)
+                                    # Replace path separators
+                                    if is_windows:
+                                        cmd = cmd.replace('/', '\\')
+                                    hook['command'] = cmd
 
                 if settings_dst.exists():
                     with open(settings_dst, 'r') as f:
@@ -826,29 +848,27 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                     shutil.copy2(settings_src, settings_dst)
                     files_copied.append('settings.json')
 
-            # Copy workshop-session-start.sh (always update to get latest fixes)
-            script_src = template_dir / "workshop-session-start.sh"
-            script_dst = local_claude_dir / "workshop-session-start.sh"
-            if script_src.exists():
-                shutil.copy2(script_src, script_dst)
-                script_dst.chmod(0o755)  # Make executable
-                files_copied.append('workshop-session-start.sh (updated)')
+            # Copy platform-specific hook scripts (always update to get latest fixes)
+            script_names = ['workshop-session-start', 'workshop-session-end', 'workshop-pre-compact']
 
-            # Copy workshop-session-end.sh (always update to get latest fixes)
-            script_end_src = template_dir / "workshop-session-end.sh"
-            script_end_dst = local_claude_dir / "workshop-session-end.sh"
-            if script_end_src.exists():
-                shutil.copy2(script_end_src, script_end_dst)
-                script_end_dst.chmod(0o755)  # Make executable
-                files_copied.append('workshop-session-end.sh (updated)')
+            for script_name in script_names:
+                # Copy the platform-appropriate script
+                script_src = template_dir / f"{script_name}{script_ext}"
+                script_dst = local_claude_dir / f"{script_name}{script_ext}"
 
-            # Copy workshop-pre-compact.sh (always update to get latest fixes)
-            script_compact_src = template_dir / "workshop-pre-compact.sh"
-            script_compact_dst = local_claude_dir / "workshop-pre-compact.sh"
-            if script_compact_src.exists():
-                shutil.copy2(script_compact_src, script_compact_dst)
-                script_compact_dst.chmod(0o755)  # Make executable
-                files_copied.append('workshop-pre-compact.sh (updated)')
+                if script_src.exists():
+                    shutil.copy2(script_src, script_dst)
+                    if not is_windows:
+                        script_dst.chmod(0o755)  # Make executable on Unix
+                    files_copied.append(f'{script_name}{script_ext} (updated)')
+
+                # On Windows, also copy the .sh Python scripts (used by .bat wrappers)
+                if is_windows and script_name in ['workshop-session-end', 'workshop-pre-compact']:
+                    sh_src = template_dir / f"{script_name}.sh"
+                    sh_dst = local_claude_dir / f"{script_name}.sh"
+                    if sh_src.exists():
+                        shutil.copy2(sh_src, sh_dst)
+                        files_copied.append(f'{script_name}.sh (Python script for .bat wrapper)')
 
             # Copy commands directory
             commands_src = template_dir / "commands"
@@ -942,7 +962,7 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 "Bash(workshop summary)",
                 "Bash(workshop web)",
                 "Bash(workshop why:*)",
-                # Hook scripts (with and without arguments)
+                # Hook scripts - Unix (.sh)
                 "Bash(.claude/workshop-session-start.sh)",
                 "Bash(./.claude/workshop-session-start.sh)",
                 "Bash(.claude/workshop-session-start.sh:*)",
@@ -955,13 +975,35 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 "Bash(./.claude/workshop-pre-compact.sh:*)"
             ]
 
+            # Add Windows batch script permissions if on Windows
+            if is_windows:
+                required_workshop_permissions.extend([
+                    # Hook scripts - Windows (.bat)
+                    "Bash(.claude/workshop-session-start.bat)",
+                    "Bash(./.claude/workshop-session-start.bat)",
+                    "Bash(.claude/workshop-session-start.bat:*)",
+                    "Bash(./.claude/workshop-session-start.bat:*)",
+                    "Bash(.claude/workshop-session-end.bat:*)",
+                    "Bash(./.claude/workshop-session-end.bat:*)",
+                    "Bash(.claude/workshop-pre-compact.bat)",
+                    "Bash(./.claude/workshop-pre-compact.bat)",
+                    "Bash(.claude/workshop-pre-compact.bat:*)",
+                    "Bash(./.claude/workshop-pre-compact.bat:*)"
+                ])
+
             if settings_local_dst.exists():
-                # Update existing file - merge permissions
+                # Update existing file - merge permissions AND hooks
                 with open(settings_local_dst, 'r') as f:
                     try:
                         local_settings = json.load(f)
                     except json.JSONDecodeError:
                         local_settings = {}
+
+                # CRITICAL: Add hooks to settings.local.json
+                # Claude Code reads settings.local.json FIRST if it exists,
+                # ignoring settings.json entirely, so hooks must be here
+                if settings_src.exists():
+                    local_settings['hooks'] = template_settings.get('hooks', {})
 
                 # Ensure permissions structure exists
                 if 'permissions' not in local_settings:
@@ -977,12 +1019,16 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                         existing_allow.append(perm)
                         added_perms.append(perm)
 
+                # Always write if hooks were added or permissions changed
+                with open(settings_local_dst, 'w') as f:
+                    json.dump(local_settings, f, indent=2)
                 if added_perms:
-                    with open(settings_local_dst, 'w') as f:
-                        json.dump(local_settings, f, indent=2)
-                    files_copied.append(f'settings.local.json (updated with {len(added_perms)} permissions)')
+                    files_copied.append(f'settings.local.json (updated with hooks + {len(added_perms)} permissions)')
+                else:
+                    files_copied.append('settings.local.json (updated with hooks)')
             else:
-                # Create new file
+                # Create new file with hooks AND permissions
+                # CRITICAL: Include hooks here since Claude Code will read this file
                 minimal_local_settings = {
                     "permissions": {
                         "allow": required_workshop_permissions,
@@ -990,9 +1036,13 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                         "ask": []
                     }
                 }
+                # Add hooks if available
+                if settings_src.exists():
+                    minimal_local_settings['hooks'] = template_settings.get('hooks', {})
+
                 with open(settings_local_dst, 'w') as f:
                     json.dump(minimal_local_settings, f, indent=2)
-                files_copied.append('settings.local.json (created)')
+                files_copied.append('settings.local.json (created with hooks + permissions)')
 
             if files_copied:
                 success_messages.append(f"✓ Local configuration updated: .claude/")

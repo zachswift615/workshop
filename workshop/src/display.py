@@ -2,6 +2,8 @@
 """
 Display utilities for Workshop - pretty terminal output using rich
 """
+import sys
+import platform
 from datetime import datetime
 from typing import List, Dict
 from rich.console import Console
@@ -11,6 +13,9 @@ from rich.markdown import Markdown
 from rich import box
 from rich.text import Text
 
+# Fix for Windows: Force UTF-8 encoding to display emojis
+if platform.system() == 'Windows' and hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 
 console = Console()
 
