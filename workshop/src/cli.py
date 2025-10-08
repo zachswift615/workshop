@@ -4,6 +4,7 @@ CLI interface for Workshop
 import click
 import os
 import platform
+import subprocess
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
@@ -799,7 +800,20 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 
             # Detect platform for script selection
             is_windows = platform.system() == 'Windows'
-            script_ext = '.bat' if is_windows else '.sh'
+
+            # On Windows, check if bash is available (Git Bash, WSL, etc.)
+            has_bash_on_windows = False
+            if is_windows:
+                try:
+                    result = subprocess.run(['bash', '--version'], capture_output=True, timeout=2)
+                    has_bash_on_windows = result.returncode == 0
+                except:
+                    pass
+
+            # Use .sh scripts with bash prefix if bash is available on Windows
+            # Otherwise use .bat files
+            use_bash_scripts = not is_windows or has_bash_on_windows
+            script_ext = '.sh' if use_bash_scripts else '.bat'
             path_sep = '\\' if is_windows else '/'
 
             # Copy settings.json (merge if exists)
@@ -819,21 +833,26 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                             for hook in hook_config.get('hooks', []):
                                 if hook.get('type') == 'command':
                                     cmd = hook['command']
+
                                     # Replace .sh with appropriate extension
                                     if '.sh' in cmd:
                                         cmd = cmd.replace('.sh', script_ext)
 
-                                    # On Windows, use absolute paths (relative paths don't work reliably)
-                                    if is_windows:
-                                        # Convert ./.claude/script.bat to C:\path\to\project\.claude\script.bat
-                                        if cmd.startswith('./'):
-                                            cmd = cmd[2:]  # Remove ./
+                                    # Remove leading ./ for cleaner paths
+                                    if cmd.startswith('./'):
+                                        cmd = cmd[2:]
+
+                                    # On Windows with bash, prefix with 'bash' command
+                                    if is_windows and has_bash_on_windows:
+                                        # Use: bash .claude/workshop-session-start.sh
+                                        hook['command'] = f'bash {cmd}'
+                                    elif is_windows:
+                                        # Windows without bash: use absolute paths for .bat files
                                         cmd = cmd.replace('/', '\\')
-                                        # Make absolute path
                                         abs_path = str(Path.cwd() / cmd)
                                         hook['command'] = abs_path
                                     else:
-                                        # Unix: keep relative paths as-is
+                                        # Unix: use relative paths as-is
                                         hook['command'] = cmd
 
                 if settings_dst.exists():
@@ -868,12 +887,13 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 
                 if script_src.exists():
                     shutil.copy2(script_src, script_dst)
-                    if not is_windows:
-                        script_dst.chmod(0o755)  # Make executable on Unix
+                    # Make executable on Unix or Windows with bash
+                    if use_bash_scripts:
+                        script_dst.chmod(0o755)
                     files_copied.append(f'{script_name}{script_ext} (updated)')
 
-                # On Windows, also copy the .sh Python scripts (used by .bat wrappers)
-                if is_windows and script_name in ['workshop-session-end', 'workshop-pre-compact']:
+                # If using .bat on Windows (no bash), also copy .sh Python scripts for end/compact
+                if is_windows and not has_bash_on_windows and script_name in ['workshop-session-end', 'workshop-pre-compact']:
                     sh_src = template_dir / f"{script_name}.sh"
                     sh_dst = local_claude_dir / f"{script_name}.sh"
                     if sh_src.exists():
@@ -985,21 +1005,31 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 "Bash(./.claude/workshop-pre-compact.sh:*)"
             ]
 
-            # Add Windows batch script permissions if on Windows
+            # Add Windows-specific permissions
             if is_windows:
-                required_workshop_permissions.extend([
-                    # Hook scripts - Windows (.bat)
-                    "Bash(.claude/workshop-session-start.bat)",
-                    "Bash(./.claude/workshop-session-start.bat)",
-                    "Bash(.claude/workshop-session-start.bat:*)",
-                    "Bash(./.claude/workshop-session-start.bat:*)",
-                    "Bash(.claude/workshop-session-end.bat:*)",
-                    "Bash(./.claude/workshop-session-end.bat:*)",
-                    "Bash(.claude/workshop-pre-compact.bat)",
-                    "Bash(./.claude/workshop-pre-compact.bat)",
-                    "Bash(.claude/workshop-pre-compact.bat:*)",
-                    "Bash(./.claude/workshop-pre-compact.bat:*)"
-                ])
+                if has_bash_on_windows:
+                    # Windows with bash - add bash-prefixed commands
+                    required_workshop_permissions.extend([
+                        "Bash(bash .claude/workshop-session-start.sh)",
+                        "Bash(bash .claude/workshop-session-start.sh:*)",
+                        "Bash(bash .claude/workshop-session-end.sh:*)",
+                        "Bash(bash .claude/workshop-pre-compact.sh)",
+                        "Bash(bash .claude/workshop-pre-compact.sh:*)"
+                    ])
+                else:
+                    # Windows without bash - add .bat script permissions
+                    required_workshop_permissions.extend([
+                        "Bash(.claude/workshop-session-start.bat)",
+                        "Bash(./.claude/workshop-session-start.bat)",
+                        "Bash(.claude/workshop-session-start.bat:*)",
+                        "Bash(./.claude/workshop-session-start.bat:*)",
+                        "Bash(.claude/workshop-session-end.bat:*)",
+                        "Bash(./.claude/workshop-session-end.bat:*)",
+                        "Bash(.claude/workshop-pre-compact.bat)",
+                        "Bash(./.claude/workshop-pre-compact.bat)",
+                        "Bash(.claude/workshop-pre-compact.bat:*)",
+                        "Bash(./.claude/workshop-pre-compact.bat:*)"
+                    ])
 
             if settings_local_dst.exists():
                 # Update existing file - merge permissions AND hooks
