@@ -35,16 +35,41 @@ No manual note-taking. No context loss. Just continuous, persistent project know
 
 ## ⚡ Quick Start
 
+**Mac/Linux:**
 ```bash
-# Install
+pip install claude-workshop
+workshop init
+workshop import --execute  # Import your past sessions (optional)
+```
+
+**Windows (recommended - handles PATH automatically):**
+```bash
+pip install pipx
+pipx ensurepath
+pipx install claude-workshop
+
+# Open a new terminal, then:
+workshop init
+workshop import --execute  # Import your past sessions (optional)
+```
+
+**Windows (alternative - using pip):**
+```cmd
 pip install claude-workshop
 
-# Set up Claude Code integration (one-time)
-workshop init
+# Add workshop to PATH permanently (run in CMD):
+for /f "delims=" %i in ('python -c "import site; print(site.USER_BASE)"') do setx PATH "%PATH%;%i\Scripts"
 
-# Import your past sessions (optional but recommended)
-workshop import --execute
+# Or in PowerShell:
+# $userBase = python -c "import site; print(site.USER_BASE)"
+# setx PATH "$env:PATH;$userBase\Scripts"
+
+# Then open a new terminal and run:
+workshop init
+workshop import --execute  # Import your past sessions (optional)
 ```
+
+> **Note:** After installation on Windows, you must open a new terminal window for the `workshop` command to be available.
 
 That's it! Claude now has persistent memory in this project.
 
@@ -118,10 +143,13 @@ Each project gets its own knowledge base:
 
 ### Setup (One-Time)
 
+**Mac/Linux:**
 ```bash
 pip install claude-workshop
 workshop init
 ```
+
+**Windows:** See [Quick Start](#-quick-start) above for Windows installation options (pipx recommended).
 
 This configures Claude Code to:
 1. Load Workshop context at session start
