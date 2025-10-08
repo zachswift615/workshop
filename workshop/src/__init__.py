@@ -1,4 +1,4 @@
 """
 Workshop - Persistent context tool for Claude Code
 """
-__version__ = "2.4.2"
+__version__ = "2.5.0"
