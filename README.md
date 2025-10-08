@@ -60,6 +60,13 @@ workshop import --execute  # Import your past sessions (optional)
 
 > **Note:** After installation on Windows, you must open a new terminal window for the `workshop` command to be available.
 
+> **⚠️ Windows Limitation:** Automatic hooks are currently disabled on Windows due to Claude Code freezing issues. Workshop still works, but requires manual commands:
+> - `workshop context` at session start
+> - `workshop decision/gotcha/note` during work
+> - `workshop import --execute` to capture sessions
+>
+> We're working to resolve this. Manual workflow is effective in the meantime!
+
 That's it! Claude now has persistent memory in this project.
 
 **In your next Claude Code session**, try:

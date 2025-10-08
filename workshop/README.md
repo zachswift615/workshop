@@ -52,6 +52,13 @@ workshop init
 
 > **Note:** After installation on Windows, you must open a new terminal window for the `workshop` command to be available.
 
+> **⚠️ Windows Limitation:** Automatic hooks (SessionStart/SessionEnd) are currently disabled on Windows due to Claude Code freezing issues. Workshop still works great, but you'll need to manually run commands:
+> - Start sessions: `workshop context` to load existing knowledge
+> - During work: Use `workshop decision`, `workshop gotcha`, etc. as needed
+> - End sessions: `workshop import --execute` to capture session summaries from transcripts
+>
+> We're working with Anthropic to resolve the hook freezing issue. In the meantime, manual workflow works well!
+
 This sets up Claude Code integration:
 - **Global**: Adds Workshop instructions to `~/.claude/settings.json` (Claude will use Workshop in all your projects)
 - **Local**: Copies integration files to `.claude/` (auto-loads context at session start, captures session summaries at session end)

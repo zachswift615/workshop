@@ -1,8 +1,15 @@
 # Workshop CLI Integration
 
-This project uses Workshop, a persistent context tool. At the start of each session, Workshop context is automatically loaded. At the end of each session, a summary is automatically saved.
+This project uses Workshop, a persistent context tool for maintaining institutional knowledge across sessions.
+
+**Note for Windows:** Workshop hooks are currently disabled on Windows due to Claude Code freezing issues. You'll need to manually run Workshop commands to load context and capture sessions. Start each session with `workshop context` to load existing knowledge.
 
 ## Workshop Commands
+
+**At the start of each session (especially on Windows):**
+- Run `workshop context` to load project knowledge
+- Run `workshop recent` to see what was worked on recently
+- Run `workshop why "<topic>"` if you need to understand past decisions
 
 **Use Workshop liberally throughout the session to:**
 - Record decisions: `workshop decision "<text>" -r "<reasoning>"`

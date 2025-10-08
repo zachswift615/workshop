@@ -811,7 +811,8 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                     template_settings = json.load(f)
 
                 # Modify hooks to use platform-specific paths
-                if 'hooks' in template_settings:
+                # Note: On Windows, hooks cause Claude Code to freeze, so we skip them
+                if 'hooks' in template_settings and not is_windows:
                     hooks = template_settings['hooks']
                     for hook_type in hooks:
                         for hook_config in hooks[hook_type]:
@@ -823,12 +824,12 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                                     if cmd.startswith('./'):
                                         cmd = cmd[2:]
 
-                                    # On Windows, prefix with 'bash' (Claude Code requires Git Bash)
-                                    if is_windows:
-                                        hook['command'] = f'bash {cmd}'
-                                    else:
-                                        # Unix: use relative paths as-is
-                                        hook['command'] = cmd
+                                    # Unix: use relative paths as-is
+                                    hook['command'] = cmd
+
+                # On Windows, remove hooks entirely (they cause freezing)
+                if is_windows and 'hooks' in template_settings:
+                    del template_settings['hooks']
 
                 if settings_dst.exists():
                     with open(settings_dst, 'r') as f:
@@ -970,15 +971,7 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
                 "Bash(./.claude/workshop-pre-compact.sh:*)"
             ]
 
-            # Add Windows-specific permissions for bash-prefixed commands
-            if is_windows:
-                required_workshop_permissions.extend([
-                    "Bash(bash .claude/workshop-session-start.sh)",
-                    "Bash(bash .claude/workshop-session-start.sh:*)",
-                    "Bash(bash .claude/workshop-session-end.sh:*)",
-                    "Bash(bash .claude/workshop-pre-compact.sh)",
-                    "Bash(bash .claude/workshop-pre-compact.sh:*)"
-                ])
+            # Note: No Windows-specific permissions needed since hooks are disabled on Windows
 
             if settings_local_dst.exists():
                 # Update existing file - merge permissions AND hooks
@@ -1050,10 +1043,25 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
         click.echo(msg)
 
     click.echo("\n✨ Setup complete! Workshop will now be available in Claude Code sessions.")
+
+    # Windows-specific notice
+    if platform.system() == 'Windows':
+        click.echo("\n⚠️  Windows Notice:")
+        click.echo("   Automatic hooks are disabled due to Claude Code freezing issues.")
+        click.echo("   To use Workshop on Windows:")
+        click.echo("   • Run 'workshop context' at the start of each session")
+        click.echo("   • Use 'workshop decision/gotcha/note' commands as needed")
+        click.echo("   • Run 'workshop import --execute' to capture session transcripts")
+        click.echo("\n   Manual workflow works great! We're working to fix automatic hooks.")
+
     click.echo("\nNext steps:")
     if local_config:
-        click.echo("  1. Start a new Claude Code session in this project")
-        click.echo("  2. Workshop context will load automatically!")
+        if platform.system() == 'Windows':
+            click.echo("  1. Start a new Claude Code session in this project")
+            click.echo("  2. Run 'workshop context' to load existing knowledge")
+        else:
+            click.echo("  1. Start a new Claude Code session in this project")
+            click.echo("  2. Workshop context will load automatically!")
     if global_config:
         click.echo("  • Claude will check for Workshop in all projects")
         click.echo("  • Install Workshop per-project to enable it")
