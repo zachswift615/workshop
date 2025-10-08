@@ -29,12 +29,38 @@ Claude automatically:
 
 ## Installation
 
+**Mac/Linux:**
 ```bash
 pip install claude-workshop
-
-# Set up Claude Code integration (recommended)
 workshop init
 ```
+
+**Windows (recommended - handles PATH automatically):**
+```bash
+pip install pipx
+pipx ensurepath
+pipx install claude-workshop
+
+# Open a new terminal, then:
+workshop init
+```
+
+**Windows (alternative - using pip):**
+```cmd
+pip install claude-workshop
+
+# Add workshop to PATH permanently (run in CMD):
+for /f "delims=" %i in ('python -c "import site; print(site.USER_BASE)"') do setx PATH "%PATH%;%i\Scripts"
+
+# Or in PowerShell:
+# $userBase = python -c "import site; print(site.USER_BASE)"
+# setx PATH "$env:PATH;$userBase\Scripts"
+
+# Then open a new terminal and run:
+workshop init
+```
+
+> **Note:** After installation on Windows, you must open a new terminal window for the `workshop` command to be available.
 
 This sets up Claude Code integration:
 - **Global**: Adds Workshop instructions to `~/.claude/settings.json` (Claude will use Workshop in all your projects)

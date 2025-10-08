@@ -3,6 +3,7 @@ CLI interface for Workshop
 """
 import click
 import os
+import platform
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
@@ -1175,7 +1176,6 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
                 click.echo(f"   (Using .claude/ location: {claude_root})")
 
             # Platform-specific help
-            import platform
             system = platform.system()
 
             click.echo(f"\n📚 Claude Code JSONL locations by platform:")
