@@ -126,13 +126,38 @@
                 <!-- Message Content -->
                 <div class="px-4 py-4">
                     {% if message.content %}
-                        <pre class="whitespace-pre-wrap text-sm text-gray-100 font-mono leading-relaxed">{{ message.content }}</pre>
+                        {% set line_count = message.content.count('\n') + 1 %}
+                        {% if line_count > 20 %}
+                            <div x-data="{ expanded: false }">
+                                <div x-show="!expanded">
+                                    <pre class="whitespace-pre-wrap text-sm text-gray-100 font-mono leading-relaxed">{{ message.content.split('\n')[:20] | join('\n') }}</pre>
+                                    <button
+                                        @click="expanded = true"
+                                        class="mt-2 text-xs text-blue-400 hover:text-blue-300 font-semibold"
+                                    >
+                                        ▼ Show {{ line_count - 20 }} more lines
+                                    </button>
+                                </div>
+                                <div x-show="expanded" x-cloak>
+                                    <pre class="whitespace-pre-wrap text-sm text-gray-100 font-mono leading-relaxed">{{ message.content }}</pre>
+                                    <button
+                                        @click="expanded = false"
+                                        class="mt-2 text-xs text-blue-400 hover:text-blue-300 font-semibold"
+                                    >
+                                        ▲ Show less
+                                    </button>
+                                </div>
+                            </div>
+                        {% else %}
+                            <pre class="whitespace-pre-wrap text-sm text-gray-100 font-mono leading-relaxed">{{ message.content }}</pre>
+                        {% endif %}
                     {% else %}
                         {% set tool_content = message.raw_json | extract_tool_content %}
                         {% if tool_content %}
                             <div class="space-y-3">
                                 {% for tool in tool_content %}
                                     {% if tool.type == 'tool_result' %}
+                                        {% set tool_line_count = tool.content.count('\n') + 1 %}
                                         <div class="border-l-4 border-purple-500 pl-4 py-2 bg-purple-900 bg-opacity-20 rounded-r">
                                             <div class="flex items-center gap-2 mb-2">
                                                 <span class="text-xs font-bold text-purple-400 bg-purple-900 px-2 py-1 rounded uppercase tracking-wider">
@@ -147,7 +172,30 @@
                                                     ID: {{ tool.tool_use_id[:8] }}...
                                                 </span>
                                             </div>
-                                            <pre class="whitespace-pre-wrap text-sm text-gray-100 font-mono leading-relaxed">{{ tool.content }}</pre>
+                                            {% if tool_line_count > 20 %}
+                                                <div x-data="{ expanded: false }">
+                                                    <div x-show="!expanded">
+                                                        <pre class="whitespace-pre-wrap text-sm text-gray-100 font-mono leading-relaxed">{{ tool.content.split('\n')[:20] | join('\n') }}</pre>
+                                                        <button
+                                                            @click="expanded = true"
+                                                            class="mt-2 text-xs text-purple-400 hover:text-purple-300 font-semibold"
+                                                        >
+                                                            ▼ Show {{ tool_line_count - 20 }} more lines
+                                                        </button>
+                                                    </div>
+                                                    <div x-show="expanded" x-cloak>
+                                                        <pre class="whitespace-pre-wrap text-sm text-gray-100 font-mono leading-relaxed">{{ tool.content }}</pre>
+                                                        <button
+                                                            @click="expanded = false"
+                                                            class="mt-2 text-xs text-purple-400 hover:text-purple-300 font-semibold"
+                                                        >
+                                                            ▲ Show less
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <pre class="whitespace-pre-wrap text-sm text-gray-100 font-mono leading-relaxed">{{ tool.content }}</pre>
+                                            {% endif %}
                                         </div>
                                     {% elif tool.type == 'tool_use' %}
                                         <div class="border-l-4 border-blue-500 pl-4 py-2 bg-blue-900 bg-opacity-20 rounded-r">
