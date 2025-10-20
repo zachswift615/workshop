@@ -95,6 +95,54 @@ def format_timestamp(timestamp_str):
 
 app.jinja_env.filters['timeago'] = format_timestamp
 
+def extract_tool_content(raw_json_str):
+    """
+    Extract tool result or tool use content from raw JSON.
+
+    Args:
+        raw_json_str: JSON string from raw_messages.raw_json field
+
+    Returns:
+        List of dicts with type and content, or empty list if no tool content
+    """
+    import json
+
+    try:
+        data = json.loads(raw_json_str)
+        message = data.get('message', {})
+        content_parts = message.get('content', [])
+
+        tool_contents = []
+
+        if isinstance(content_parts, list):
+            for part in content_parts:
+                if isinstance(part, dict):
+                    part_type = part.get('type')
+
+                    # Tool result
+                    if part_type == 'tool_result':
+                        tool_contents.append({
+                            'type': 'tool_result',
+                            'tool_use_id': part.get('tool_use_id', ''),
+                            'content': part.get('content', ''),
+                            'is_error': part.get('is_error', False)
+                        })
+
+                    # Tool use
+                    elif part_type == 'tool_use':
+                        tool_contents.append({
+                            'type': 'tool_use',
+                            'id': part.get('id', ''),
+                            'name': part.get('name', ''),
+                            'input': part.get('input', {})
+                        })
+
+        return tool_contents
+    except:
+        return []
+
+app.jinja_env.filters['extract_tool_content'] = extract_tool_content
+
 @app.route('/')
 def dashboard():
     """Main dashboard with stats and recent entries"""

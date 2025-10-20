@@ -68,7 +68,38 @@
                     {% if message.content %}
                         <pre class="whitespace-pre-wrap text-sm text-gray-700 font-mono">{{ message.content }}</pre>
                     {% else %}
-                        <p class="text-gray-400 italic">No text content</p>
+                        {% set tool_content = message.raw_json | extract_tool_content %}
+                        {% if tool_content %}
+                            <!-- Display tool results/uses -->
+                            <div class="space-y-3">
+                                {% for tool in tool_content %}
+                                    {% if tool.type == 'tool_result' %}
+                                        <div class="border-l-4 border-purple-400 pl-3">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
+                                                    Tool Result
+                                                </span>
+                                                {% if tool.is_error %}
+                                                <span class="text-xs font-semibold text-red-700 bg-red-100 px-2 py-0.5 rounded">
+                                                    Error
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                            <pre class="whitespace-pre-wrap text-sm text-gray-700 font-mono mt-2">{{ tool.content }}</pre>
+                                        </div>
+                                    {% elif tool.type == 'tool_use' %}
+                                        <div class="border-l-4 border-blue-400 pl-3">
+                                            <div class="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded inline-block mb-1">
+                                                Tool Use: {{ tool.name }}
+                                            </div>
+                                            <pre class="whitespace-pre-wrap text-sm text-gray-700 font-mono mt-2">{{ tool.input | tojson(indent=2) }}</pre>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-gray-400 italic">No text or tool content</p>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -137,7 +168,28 @@
                                 {{ ctx_msg.content }}
                             {% endif %}
                         {% else %}
-                            <span class="text-gray-400 italic">No text content</span>
+                            {% set tool_content = ctx_msg.raw_json | extract_tool_content %}
+                            {% if tool_content %}
+                                <div class="space-y-2">
+                                    {% for tool in tool_content %}
+                                        {% if tool.type == 'tool_result' %}
+                                            <div class="text-xs">
+                                                <span class="font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">Tool Result</span>
+                                                <span class="text-gray-500 ml-2">{{ tool.content[:100] }}{% if tool.content|length > 100 %}...{% endif %}</span>
+                                            </div>
+                                        {% elif tool.type == 'tool_use' %}
+                                            <div class="text-xs">
+                                                <span class="font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">{{ tool.name }}</span>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <a href="/messages/{{ ctx_msg.message_uuid }}" class="text-blue-600 hover:text-blue-800 text-xs ml-2">
+                                    View full
+                                </a>
+                            {% else %}
+                                <span class="text-gray-400 italic">No text or tool content</span>
+                            {% endif %}
                         {% endif %}
                     </div>
                 </div>

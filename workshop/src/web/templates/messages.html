@@ -143,7 +143,27 @@
                                             {{ message.content }}
                                         {% endif %}
                                     {% else %}
-                                        <span class="text-gray-400 italic">No text content</span>
+                                        {% set tool_content = message.raw_json | extract_tool_content %}
+                                        {% if tool_content %}
+                                            <div class="flex flex-wrap gap-2 items-center">
+                                                {% for tool in tool_content %}
+                                                    {% if tool.type == 'tool_result' %}
+                                                        <span class="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
+                                                            Tool Result {% if tool.is_error %}(Error){% endif %}
+                                                        </span>
+                                                        <span class="text-sm text-gray-500">
+                                                            {{ tool.content[:80] }}{% if tool.content|length > 80 %}...{% endif %}
+                                                        </span>
+                                                    {% elif tool.type == 'tool_use' %}
+                                                        <span class="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
+                                                            {{ tool.name }}
+                                                        </span>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-gray-400 italic">No text or tool content</span>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
