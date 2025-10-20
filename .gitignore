@@ -62,3 +62,5 @@ settings.local.json
 *.tmp
 *.tmp.*
 *.scip.*
+index.python.scip
+index.python.scip.meta
