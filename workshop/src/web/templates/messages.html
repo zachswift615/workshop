@@ -169,12 +169,18 @@
                             </div>
 
                             <!-- Actions -->
-                            <div class="ml-4">
+                            <div class="ml-4 flex flex-col gap-2">
                                 <a
                                     href="/messages/{{ message.message_uuid }}"
-                                    class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                    class="text-blue-600 hover:text-blue-800 text-sm font-medium text-right"
                                 >
-                                    View Full →
+                                    Details →
+                                </a>
+                                <a
+                                    href="/messages/{{ message.message_uuid }}/conversation"
+                                    class="text-green-600 hover:text-green-800 text-sm font-medium text-right"
+                                >
+                                    Conversation →
                                 </a>
                             </div>
                         </div>

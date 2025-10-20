@@ -4,10 +4,16 @@
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Back Link -->
-    <div>
+    <!-- Navigation Links -->
+    <div class="flex items-center justify-between">
         <a href="/messages" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
             ← Back to Messages
+        </a>
+        <a
+            href="/messages/{{ message.message_uuid }}/conversation"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+        >
+            View Full Conversation →
         </a>
     </div>
 

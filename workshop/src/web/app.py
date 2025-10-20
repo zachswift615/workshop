@@ -518,6 +518,92 @@ def view_message(message_uuid):
                          message=message,
                          context_messages=context_messages)
 
+@app.route('/messages/<message_uuid>/conversation')
+def view_conversation(message_uuid):
+    """View full conversation thread (Claude Code TUI style)"""
+    from src.storage.raw_messages import RawMessagesManager
+    from sqlalchemy import select
+    from src.models import RawMessage
+
+    store = get_store()
+
+    # Get pagination params
+    limit = int(request.args.get('limit', 25))  # Messages per page
+    offset = int(request.args.get('offset', 0))  # Starting position
+
+    with store.db_manager.get_session() as session:
+        raw_msg_manager = RawMessagesManager(session, store.db_manager.project_id)
+
+        # Get the anchor message
+        anchor_message = raw_msg_manager.get_message_by_uuid(message_uuid)
+
+        if not anchor_message:
+            flash('Message not found', 'error')
+            return redirect(url_for('list_messages'))
+
+        session_id = anchor_message['session_id']
+
+        # Get all messages in this session, ordered by timestamp
+        query = select(RawMessage).where(RawMessage.session_id == session_id)
+
+        if store.db_manager.project_id:
+            query = query.where(RawMessage.project_id == store.db_manager.project_id)
+
+        query = query.order_by(RawMessage.timestamp.asc())
+
+        # Get total count
+        all_messages = session.execute(query).scalars().all()
+        total_messages = len(all_messages)
+
+        # Find the anchor message position
+        anchor_position = 0
+        for i, msg in enumerate(all_messages):
+            if msg.message_uuid == message_uuid:
+                anchor_position = i
+                break
+
+        # Calculate offset if not provided (center on anchor message)
+        if 'offset' not in request.args:
+            offset = max(0, anchor_position - limit // 2)
+
+        # Get paginated messages
+        paginated_messages = all_messages[offset:offset + limit]
+
+        messages = [
+            {
+                'id': str(m.id),
+                'message_uuid': m.message_uuid,
+                'session_id': m.session_id,
+                'message_type': m.message_type,
+                'timestamp': m.timestamp.isoformat(),
+                'parent_uuid': m.parent_uuid,
+                'content': m.content,
+                'raw_json': m.raw_json,
+                'created_at': m.created_at.isoformat(),
+                'is_anchor': m.message_uuid == message_uuid
+            }
+            for m in paginated_messages
+        ]
+
+    # Calculate pagination info
+    has_earlier = offset > 0
+    has_later = (offset + limit) < total_messages
+    current_page = (offset // limit) + 1
+    total_pages = (total_messages + limit - 1) // limit
+
+    return render_template('conversation.html',
+                         messages=messages,
+                         anchor_message=anchor_message,
+                         session_id=session_id,
+                         limit=limit,
+                         offset=offset,
+                         total_messages=total_messages,
+                         has_earlier=has_earlier,
+                         has_later=has_later,
+                         current_page=current_page,
+                         total_pages=total_pages,
+                         anchor_uuid=message_uuid)
+
 def run(host='127.0.0.1', port=5000, debug=True, workspace_dir=None):
     """
     Run the Flask app
