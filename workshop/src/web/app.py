@@ -531,6 +531,10 @@ def view_conversation(message_uuid):
     limit = int(request.args.get('limit', 25))  # Messages per page
     offset = int(request.args.get('offset', 0))  # Starting position
 
+    # Get exclude_types as comma-separated list
+    exclude_types_param = request.args.get('exclude_types', '')
+    exclude_types = [t.strip() for t in exclude_types_param.split(',') if t.strip()]
+
     with store.db_manager.get_session() as session:
         raw_msg_manager = RawMessagesManager(session, store.db_manager.project_id)
 
@@ -548,6 +552,10 @@ def view_conversation(message_uuid):
 
         if store.db_manager.project_id:
             query = query.where(RawMessage.project_id == store.db_manager.project_id)
+
+        # Filter out excluded message types
+        if exclude_types:
+            query = query.where(~RawMessage.message_type.in_(exclude_types))
 
         query = query.order_by(RawMessage.timestamp.asc())
 
@@ -602,7 +610,8 @@ def view_conversation(message_uuid):
                          has_later=has_later,
                          current_page=current_page,
                          total_pages=total_pages,
-                         anchor_uuid=message_uuid)
+                         anchor_uuid=message_uuid,
+                         exclude_types=exclude_types)
 
 def run(host='127.0.0.1', port=5000, debug=True, workspace_dir=None):
     """

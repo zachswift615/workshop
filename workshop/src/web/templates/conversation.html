@@ -22,7 +22,7 @@
                 <label for="limit" class="text-sm font-medium text-gray-700">Messages per page:</label>
                 <select
                     id="limit"
-                    onchange="window.location.href='?limit=' + this.value"
+                    onchange="window.location.href='?limit=' + this.value + '{{ '&exclude_types=' + ','.join(exclude_types) if exclude_types else '' }}'"
                     class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                     <option value="10" {% if limit == 10 %}selected{% endif %}>10</option>
@@ -33,6 +33,92 @@
             </div>
         </div>
 
+        <!-- Message Type Filter -->
+        <div class="border-t pt-4 mb-4" id="message-filter">
+            <div class="mb-2">
+                <span class="text-sm font-medium text-gray-700">Show message types:</span>
+            </div>
+            <div class="flex flex-wrap gap-3 mb-3">
+                <label class="inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        data-type="user"
+                        {% if 'user' not in exclude_types %}checked{% endif %}
+                        class="filter-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    >
+                    <span class="ml-2 text-sm">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-600 text-white">USER</span>
+                    </span>
+                </label>
+
+                <label class="inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        data-type="assistant"
+                        {% if 'assistant' not in exclude_types %}checked{% endif %}
+                        class="filter-checkbox w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
+                    >
+                    <span class="ml-2 text-sm">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-600 text-white">ASSISTANT</span>
+                    </span>
+                </label>
+
+                <label class="inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        data-type="tool_result"
+                        {% if 'tool_result' not in exclude_types %}checked{% endif %}
+                        class="filter-checkbox w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
+                    >
+                    <span class="ml-2 text-sm">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-purple-600 text-white">TOOL_RESULT</span>
+                    </span>
+                </label>
+
+                <label class="inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        data-type="tool_use"
+                        {% if 'tool_use' not in exclude_types %}checked{% endif %}
+                        class="filter-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    >
+                    <span class="ml-2 text-sm">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-500 text-white">TOOL_USE</span>
+                    </span>
+                </label>
+
+                <label class="inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        data-type="thinking"
+                        {% if 'thinking' not in exclude_types %}checked{% endif %}
+                        class="filter-checkbox w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500"
+                    >
+                    <span class="ml-2 text-sm">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-yellow-600 text-black">THINKING</span>
+                    </span>
+                </label>
+
+                <label class="inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        data-type="system"
+                        {% if 'system' not in exclude_types %}checked{% endif %}
+                        class="filter-checkbox w-4 h-4 text-gray-600 bg-gray-100 border-gray-300 rounded focus:ring-gray-500"
+                    >
+                    <span class="ml-2 text-sm">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-gray-600 text-white">SYSTEM</span>
+                    </span>
+                </label>
+            </div>
+            <button
+                id="apply-filter-btn"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+            >
+                Apply Filter
+            </button>
+        </div>
+
         <!-- Pagination Controls -->
         <div class="flex items-center justify-between border-t pt-4">
             <div class="text-sm text-gray-600">
@@ -41,9 +127,10 @@
             </div>
 
             <div class="flex gap-2">
+                {% set exclude_param = '&exclude_types=' + ','.join(exclude_types) if exclude_types else '' %}
                 {% if has_earlier %}
                     <a
-                        href="?offset={{ [0, offset - limit]|max }}&limit={{ limit }}"
+                        href="?offset={{ [0, offset - limit]|max }}&limit={{ limit }}{{ exclude_param }}"
                         class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                     >
                         ← Earlier
@@ -59,7 +146,7 @@
 
                 {% if has_later %}
                     <a
-                        href="?offset={{ offset + limit }}&limit={{ limit }}"
+                        href="?offset={{ offset + limit }}&limit={{ limit }}{{ exclude_param }}"
                         class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                     >
                         Later →
@@ -229,9 +316,10 @@
             </div>
 
             <div class="flex gap-2">
+                {% set exclude_param = '&exclude_types=' + ','.join(exclude_types) if exclude_types else '' %}
                 {% if has_earlier %}
                     <a
-                        href="?offset={{ [0, offset - limit]|max }}&limit={{ limit }}"
+                        href="?offset={{ [0, offset - limit]|max }}&limit={{ limit }}{{ exclude_param }}"
                         class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                     >
                         ← Earlier
@@ -240,7 +328,7 @@
 
                 {% if has_later %}
                     <a
-                        href="?offset={{ offset + limit }}&limit={{ limit }}"
+                        href="?offset={{ offset + limit }}&limit={{ limit }}{{ exclude_param }}"
                         class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                     >
                         Later →
@@ -257,6 +345,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const anchorMsg = document.querySelector('[id^="msg-{{ anchor_uuid }}"]');
     if (anchorMsg) {
         anchorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Message type filter
+    const applyFilterBtn = document.getElementById('apply-filter-btn');
+    if (applyFilterBtn) {
+        applyFilterBtn.addEventListener('click', function() {
+            // Get all unchecked checkboxes (these are the types to exclude)
+            const checkboxes = document.querySelectorAll('.filter-checkbox');
+            const excludedTypes = [];
+
+            checkboxes.forEach(function(checkbox) {
+                if (!checkbox.checked) {
+                    excludedTypes.push(checkbox.getAttribute('data-type'));
+                }
+            });
+
+            // Update URL with excluded types
+            const params = new URLSearchParams(window.location.search);
+            if (excludedTypes.length > 0) {
+                params.set('exclude_types', excludedTypes.join(','));
+            } else {
+                params.delete('exclude_types');
+            }
+            params.delete('offset'); // Reset to first page
+            window.location.search = params.toString();
+        });
     }
 });
 </script>

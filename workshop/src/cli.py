@@ -334,6 +334,220 @@ def why(query, limit):
 
 
 @main.command()
+@click.argument('query')
+@click.option('--limit', '-n', type=int, default=10, help='Number of search results')
+@click.option('--type', '-t', multiple=True, help='Only show message types (e.g., user, assistant)')
+@click.option('--context', '-c', type=int, default=2, help='Number of messages before/after to show (default: 2)')
+@click.option('--interactive', '-i', is_flag=True, help='Interactive mode with navigation controls (for humans)')
+def browse(query, limit, type, context, interactive):
+    """
+    Browse conversations - search and view messages with context.
+
+    By default, displays all results non-interactively (Claude-friendly).
+    Use --interactive for human navigation.
+
+    Examples:
+        workshop browse "authentication"              # Show all results
+        workshop browse "bug" --type user             # Only user messages
+        workshop browse "zustand" -n 5 -c 3           # 5 results, 3 lines context
+        workshop browse "auth" -i                     # Interactive mode
+    """
+    from .storage.raw_messages import RawMessagesManager
+    import sys
+
+    store = get_storage()
+
+    with store.db_manager.get_session() as session:
+        raw_msg_manager = RawMessagesManager(session, store.db_manager.project_id)
+
+        # Search for messages
+        message_types = list(type) if type else None
+        results = raw_msg_manager.search_messages(
+            query_text=query,
+            limit=limit,
+            message_types=message_types
+        )
+
+        if not results:
+            display_info(f"No messages found matching '{query}'")
+            return
+
+        if interactive:
+            # Interactive mode for humans
+            _browse_interactive(results, query, context, raw_msg_manager)
+        else:
+            # Non-interactive mode for Claude Code
+            _browse_display_all(results, query, context, raw_msg_manager)
+
+
+def _browse_display_all(results, query, context_size, raw_msg_manager):
+    """Display all results non-interactively (Claude-friendly)"""
+    click.echo(f"\n🔍 Found {len(results)} messages matching '{query}'\n")
+
+    for idx, message in enumerate(results, 1):
+        msg_uuid = message['message_uuid']
+
+        # Get context messages
+        context_list = raw_msg_manager.get_conversation_context(
+            message_uuid=msg_uuid,
+            before=context_size,
+            after=context_size
+        )
+
+        # Header
+        click.echo(f"\n{'='*80}")
+        click.echo(f"Result {idx} of {len(results)}")
+        click.echo(f"{'='*80}\n")
+
+        # Display context messages, highlighting the match
+        for ctx_msg in context_list:
+            is_match = (ctx_msg['message_uuid'] == msg_uuid)
+            _display_message_compact(ctx_msg, is_match=is_match, query=query if is_match else None)
+
+    click.echo(f"\n{'='*80}")
+    click.echo(f"End of {len(results)} results")
+    click.echo(f"{'='*80}\n")
+
+
+def _browse_interactive(results, query, initial_context_size, raw_msg_manager):
+    """Interactive browser loop (for humans)"""
+    click.echo(f"\n🔍 Found {len(results)} messages matching '{query}'\n")
+
+    current_index = 0
+    context_size = initial_context_size
+
+    while True:
+        message = results[current_index]
+        msg_uuid = message['message_uuid']
+
+        # Get context messages
+        context_list = raw_msg_manager.get_conversation_context(
+            message_uuid=msg_uuid,
+            before=context_size,
+            after=context_size
+        )
+
+        # Clear screen for better readability
+        click.clear()
+
+        # Header
+        click.echo(f"\n{'='*80}")
+        click.echo(f"Result {current_index + 1} of {len(results)}")
+        click.echo(f"{'='*80}\n")
+
+        # Display context messages, highlighting the match
+        for ctx_msg in context_list:
+            is_match = (ctx_msg['message_uuid'] == msg_uuid)
+            _display_message_compact(ctx_msg, is_match=is_match, query=query if is_match else None)
+
+        # Navigation prompt
+        click.echo(f"\n{'-'*80}")
+        click.echo("Commands: [n]ext, [p]revious, [j]ump N, [c]ontext +/-, [q]uit")
+        click.echo(f"{'-'*80}\n")
+
+        # Get user input
+        try:
+            user_input = click.prompt("", type=str, default="n", show_default=False)
+            cmd = user_input.lower().strip()
+
+            if cmd == 'q' or cmd == 'quit':
+                break
+            elif cmd == 'n' or cmd == 'next' or cmd == '':
+                current_index = min(current_index + 1, len(results) - 1)
+            elif cmd == 'p' or cmd == 'prev' or cmd == 'previous':
+                current_index = max(current_index - 1, 0)
+            elif cmd.startswith('j '):
+                try:
+                    jump_to = int(cmd.split()[1]) - 1
+                    if 0 <= jump_to < len(results):
+                        current_index = jump_to
+                    else:
+                        click.echo(f"Invalid index (1-{len(results)})")
+                        click.pause()
+                except (ValueError, IndexError):
+                    click.echo("Usage: j <number>")
+                    click.pause()
+            elif cmd == 'c+':
+                context_size = min(context_size + 1, 10)
+            elif cmd == 'c-':
+                context_size = max(context_size - 1, 0)
+            else:
+                click.echo(f"Unknown command: {cmd}")
+                click.pause()
+
+        except (KeyboardInterrupt, EOFError):
+            break
+
+    click.echo("\n👋 Exiting browser\n")
+
+
+def _display_message_compact(message, is_match=False, query=None):
+    """Display a single message in compact format for browsing"""
+    import re
+    from datetime import datetime
+
+    msg_type = message['message_type']
+    timestamp = message.get('timestamp', '')
+    content = message.get('content', '(no content)')
+
+    # Format timestamp
+    if timestamp:
+        try:
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            time_str = dt.strftime('%H:%M:%S')
+        except:
+            time_str = timestamp[:8] if len(timestamp) > 8 else timestamp
+    else:
+        time_str = '??:??:??'
+
+    # Color codes for message types
+    type_colors = {
+        'user': 'blue',
+        'assistant': 'green',
+        'tool_result': 'magenta',
+        'tool_use': 'cyan',
+        'thinking': 'yellow',
+        'system': 'white'
+    }
+
+    color = type_colors.get(msg_type, 'white')
+
+    # Header
+    if is_match:
+        click.secho(f"\n>>> [{time_str}] [{msg_type.upper()}] <<<", fg='bright_white', bg='red', bold=True)
+    else:
+        click.secho(f"\n[{time_str}] [{msg_type.upper()}]", fg=color, dim=True)
+
+    # Content (truncate if too long)
+    max_lines = 20 if is_match else 5
+    lines = content.split('\n')
+
+    if len(lines) > max_lines:
+        display_lines = lines[:max_lines]
+        remaining = len(lines) - max_lines
+        content_preview = '\n'.join(display_lines) + f"\n... ({remaining} more lines)"
+    else:
+        content_preview = content
+
+    # Highlight query in match
+    if is_match and query:
+        # Simple highlighting - wrap query in brackets
+        content_preview = re.sub(
+            f'({re.escape(query)})',
+            r'[\1]',
+            content_preview,
+            flags=re.IGNORECASE
+        )
+
+    # Indent content
+    for line in content_preview.split('\n'):
+        if is_match:
+            click.echo(f"  {line}")
+        else:
+            click.secho(f"  {line}", dim=True)
+
+
+@main.command()
 def preferences():
     """Show all preferences"""
     store = get_storage()

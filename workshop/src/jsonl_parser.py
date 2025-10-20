@@ -617,6 +617,14 @@ If a category has no entries, use an empty array. Do NOT include any text outsid
         Returns:
             Extracted text content
         """
+        # Handle system messages (type: "system" with top-level content)
+        if message.get('type') == 'system':
+            content = message.get('content', '')
+            if isinstance(content, str):
+                if not skip_noise_filter and self._is_noise(content):
+                    return ""
+                return content
+
         msg_data = message.get('message', {})
 
         if isinstance(msg_data, dict):
@@ -628,11 +636,15 @@ If a category has no entries, use an empty array. Do NOT include any text outsid
                 texts = []
                 for part in content_parts:
                     if isinstance(part, dict):
-                        # Skip tool results and system messages
+                        # Skip tool results and tool uses
                         if part.get('type') in ['tool_result', 'tool_use']:
                             continue
+                        # Handle text content
                         if part.get('type') == 'text':
                             texts.append(part.get('text', ''))
+                        # Handle thinking content
+                        elif part.get('type') == 'thinking':
+                            texts.append(part.get('thinking', ''))
                     elif isinstance(part, str):
                         texts.append(part)
                 content = ' '.join(texts)
