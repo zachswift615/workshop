@@ -307,6 +307,7 @@ Workshop tracks different types of knowledge:
 ```bash
 workshop why <query>           # Search decisions with reasoning
 workshop search <query>        # Full-text search all entries
+workshop browse <query>        # Search conversations with context
 workshop context               # Show current project state
 workshop recent                # Show recent entries
 workshop sessions              # Show past session summaries
