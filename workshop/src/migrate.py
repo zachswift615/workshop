@@ -468,13 +468,80 @@ def migrate_schema_to_v3(db_path: Path) -> bool:
         return False
 
 
-def migrate_schema(db_path: Path, target_version: int = 3) -> bool:
+def migrate_schema_to_v4(db_path: Path) -> bool:
+    """
+    Migrate schema from v3 to v4: Add raw_messages table for complete conversation history.
+
+    Args:
+        db_path: Path to SQLite database
+
+    Returns:
+        True if migration succeeded
+    """
+    print("🔄 Migrating database schema to v4 (raw message storage)...")
+
+    # Backup database before migration
+    backup_path = db_path.with_suffix('.db.backup.v3')
+    if not backup_path.exists():
+        shutil.copy2(db_path, backup_path)
+        print(f"  ✓ Created backup: {backup_path.name}")
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+
+        # Create raw_messages table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS raw_messages (
+                id CHAR(36) PRIMARY KEY,
+                project_id CHAR(36),
+                session_id TEXT,
+                message_uuid TEXT NOT NULL UNIQUE,
+                message_type TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                parent_uuid TEXT,
+                content TEXT,
+                raw_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (project_id) REFERENCES projects(id)
+            )
+        """)
+
+        # Create indexes for fast traversal and search
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_messages_uuid ON raw_messages(message_uuid)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_messages_session ON raw_messages(session_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_messages_type ON raw_messages(message_type)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_messages_timestamp ON raw_messages(timestamp)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_messages_project ON raw_messages(project_id)")
+
+        # Composite indexes for efficient queries
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_messages_session_time ON raw_messages(session_id, timestamp)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_messages_project_time ON raw_messages(project_id, timestamp)")
+
+        # Update schema version
+        conn.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('schema_version', '4')")
+
+        conn.commit()
+        conn.close()
+
+        print("  ✓ Migration to v4 complete")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ Migration failed: {e}")
+        # Restore from backup
+        if backup_path.exists():
+            shutil.copy2(backup_path, db_path)
+            print(f"  ✓ Restored from backup")
+        return False
+
+
+def migrate_schema(db_path: Path, target_version: int = 4) -> bool:
     """
     Migrate schema to target version.
 
     Args:
         db_path: Path to SQLite database
-        target_version: Target schema version (default 2)
+        target_version: Target schema version (default 4)
 
     Returns:
         True if migration succeeded or not needed
@@ -496,6 +563,11 @@ def migrate_schema(db_path: Path, target_version: int = 3) -> bool:
     if current_version < 3 and target_version >= 3:
         if not migrate_schema_to_v3(db_path):
             return False
+        current_version = 3
+
+    if current_version < 4 and target_version >= 4:
+        if not migrate_schema_to_v4(db_path):
+            return False
 
     return True
 
@@ -516,7 +588,7 @@ def auto_migrate_if_needed(workspace_dir: Path) -> bool:
         return True  # New database, no migration needed
 
     current_version = get_schema_version(db_path)
-    target_version = 3  # Current schema version
+    target_version = 4  # Current schema version
 
     if current_version < target_version:
         return migrate_schema(db_path, target_version)

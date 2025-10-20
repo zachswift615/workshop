@@ -293,3 +293,27 @@ class ImportHistory(Base):
 
     def __repr__(self):
         return f"<ImportHistory(id={self.id}, path={self.jsonl_path})>"
+
+
+class RawMessage(Base):
+    """Raw conversation messages from JSONL imports."""
+    __tablename__ = 'raw_messages'
+
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    project_id = Column(GUID(), ForeignKey('projects.id'), nullable=True, index=True)  # Nullable for OSS mode
+    session_id = Column(String(255), nullable=True, index=True)  # From JSONL sessionId
+    message_uuid = Column(String(36), nullable=False, unique=True, index=True)  # From JSONL uuid
+    message_type = Column(String(50), nullable=False, index=True)  # user/assistant/system/tool_result
+    timestamp = Column(DateTime, nullable=False, index=True)
+    parent_uuid = Column(String(36), nullable=True)  # For threading
+    content = Column(Text, nullable=True)  # Extracted text/JSON content
+    raw_json = Column(Text, nullable=False)  # Complete JSONL line for full fidelity
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_raw_messages_session_time', 'session_id', 'timestamp'),
+        Index('idx_raw_messages_project_time', 'project_id', 'timestamp'),
+    )
+
+    def __repr__(self):
+        return f"<RawMessage(uuid={self.message_uuid}, type={self.message_type})>"

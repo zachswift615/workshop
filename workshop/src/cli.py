@@ -1300,12 +1300,7 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
 
             filtered_entries.append(entry)
 
-        if not filtered_entries:
-            click.echo(f"  ⏭️  Skipped (no new entries)")
-            files_skipped += 1
-            continue
-
-        # Show summary
+        # Show summary (even if no entries extracted, we still store raw messages)
         decisions = [e for e in filtered_entries if e.type == 'decision']
         gotchas = [e for e in filtered_entries if e.type == 'gotcha']
         preferences = [e for e in filtered_entries if e.type == 'preference']
@@ -1313,12 +1308,13 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
         click.echo(f"  ✓ {len(decisions)} decisions")
         click.echo(f"  ✓ {len(gotchas)} gotchas")
         click.echo(f"  ✓ {len(preferences)} preferences")
+        click.echo(f"  ✓ {result.messages_processed} raw messages")
 
         # Interactive review
         if interactive and not execute:
             click.echo("\n  💡 Use --execute with --interactive to review and import")
 
-        # Store for batch import
+        # Store for batch import (even if no extracted entries)
         total_entries.extend([(jsonl_path, result, filtered_entries)])
         files_processed += 1
 
@@ -1338,6 +1334,8 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
     click.echo(f"\n📥 Importing...")
 
     imported_count = 0
+    total_messages_stored = 0
+
     for jsonl_path, result, entries in total_entries:
         # Interactive review mode
         if interactive:
@@ -1357,7 +1355,7 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
 
             entries = reviewed_entries
 
-        # Import entries
+        # Import entries (extracted insights)
         for entry in entries:
             store.add_entry(
                 entry_type=entry.type,
@@ -1366,6 +1364,45 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
                 timestamp=entry.timestamp
             )
             imported_count += 1
+
+        # Import ALL raw messages from the JSONL file
+        # Read all messages (not just extracted entries)
+        from .storage.raw_messages import RawMessagesManager
+
+        raw_messages_to_store = []
+        all_messages = parser._read_jsonl(jsonl_path)
+
+        # Check if already imported (skip duplicates)
+        with store.db_manager.get_session() as session:
+            raw_msg_manager = RawMessagesManager(session, store.db_manager.project_id)
+
+            for msg in all_messages:
+                msg_uuid = msg.get('uuid', '')
+                if not msg_uuid:
+                    continue
+
+                # Skip if already exists
+                if raw_msg_manager.message_exists(msg_uuid):
+                    continue
+
+                # Extract content from message
+                msg_content = parser._get_message_content(msg)
+
+                raw_messages_to_store.append({
+                    'message_uuid': msg_uuid,
+                    'message_type': msg.get('type', 'unknown'),
+                    'timestamp': msg.get('timestamp', datetime.now().isoformat()),
+                    'session_id': msg.get('sessionId'),
+                    'parent_uuid': msg.get('parentUuid'),
+                    'content': msg_content,
+                    'raw_json': json.dumps(msg)
+                })
+
+            # Batch insert all raw messages
+            if raw_messages_to_store:
+                messages_count = raw_msg_manager.add_raw_messages_batch(raw_messages_to_store)
+                total_messages_stored += messages_count
+                click.echo(f"  ✓ Stored {messages_count} raw messages")
 
         # Record import
         file_hash = parser.calculate_file_hash(jsonl_path)
@@ -1378,7 +1415,7 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
             entries_created=len(entries)
         )
 
-    success(f"Imported {imported_count} entries from {files_processed} files")
+    success(f"Imported {imported_count} entries and {total_messages_stored} raw messages from {files_processed} files")
 
 
 @main.command('import-status')

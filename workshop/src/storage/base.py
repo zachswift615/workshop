@@ -228,7 +228,7 @@ class DatabaseManager:
         with self.SessionLocal() as session:
             version = session.query(Config).filter_by(key='schema_version').first()
             if not version:
-                session.add(Config(key='schema_version', value='3'))  # SQLAlchemy version
+                session.add(Config(key='schema_version', value='4'))  # SQLAlchemy version
                 session.commit()
 
     def _ensure_user_and_project(self):
