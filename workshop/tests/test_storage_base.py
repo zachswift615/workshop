@@ -215,7 +215,7 @@ class TestDatabaseInitialization:
         with db_manager.get_session() as session:
             version_config = session.query(Config).filter_by(key='schema_version').first()
             assert version_config is not None
-            assert version_config.value == '3'  # SQLAlchemy version
+            assert version_config.value == '4'  # SQLAlchemy version (v4 adds raw_messages)
 
     def test_tables_created(self, temp_dir):
         """Test that all required tables are created"""
