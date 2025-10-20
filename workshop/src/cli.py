@@ -1389,9 +1389,34 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
                     # Extract content from message (skip noise filter for raw storage)
                     msg_content = parser._get_message_content(msg, skip_noise_filter=True)
 
+                    # Determine ACTUAL message type by looking at content
+                    # The top-level 'type' is misleading - tool results show as 'user'
+                    top_level_type = msg.get('type', 'unknown')
+                    actual_type = top_level_type  # Default to top-level
+
+                    # Check message content to determine actual type
+                    message_data = msg.get('message', {})
+                    if isinstance(message_data, dict):
+                        content_parts = message_data.get('content', [])
+                        if isinstance(content_parts, list) and len(content_parts) > 0:
+                            first_content = content_parts[0]
+                            if isinstance(first_content, dict):
+                                content_type = first_content.get('type')
+                                if content_type == 'tool_result':
+                                    actual_type = 'tool_result'
+                                elif content_type == 'tool_use':
+                                    actual_type = 'tool_use'
+                                elif content_type == 'text':
+                                    # Real user or assistant message
+                                    actual_type = message_data.get('role', top_level_type)
+                                elif content_type == 'thinking':
+                                    actual_type = 'thinking'
+                                elif content_type == 'image':
+                                    actual_type = 'user'  # User sent an image
+
                     raw_messages_to_store.append({
                         'message_uuid': msg_uuid,
-                        'message_type': msg.get('type', 'unknown'),
+                        'message_type': actual_type,
                         'timestamp': msg.get('timestamp', datetime.now().isoformat()),
                         'session_id': msg.get('sessionId'),
                         'parent_uuid': msg.get('parentUuid'),

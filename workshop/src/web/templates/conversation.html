@@ -84,15 +84,18 @@
                 class="border-b border-gray-700 last:border-b-0 {% if message.is_anchor %}bg-yellow-900 bg-opacity-20{% endif %}"
             >
                 <!-- Message Header -->
-                <div class="px-4 py-3 {% if message.message_type == 'user' %}bg-blue-900 bg-opacity-30{% elif message.message_type == 'assistant' %}bg-green-900 bg-opacity-30{% elif message.message_type == 'system' %}bg-gray-800{% endif %}">
+                <div class="px-4 py-3 {% if message.message_type == 'user' %}bg-blue-900 bg-opacity-30{% elif message.message_type == 'assistant' %}bg-green-900 bg-opacity-30{% elif message.message_type == 'tool_use' %}bg-blue-900 bg-opacity-20{% elif message.message_type == 'tool_result' %}bg-purple-900 bg-opacity-20{% elif message.message_type == 'thinking' %}bg-yellow-900 bg-opacity-10{% else %}bg-gray-800{% endif %}">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <!-- Role Badge -->
                             <span class="inline-flex items-center px-3 py-1 rounded text-xs font-bold uppercase tracking-wider
                                 {% if message.message_type == 'user' %}bg-blue-600 text-white
                                 {% elif message.message_type == 'assistant' %}bg-green-600 text-white
+                                {% elif message.message_type == 'tool_use' %}bg-blue-500 text-white
+                                {% elif message.message_type == 'tool_result' %}bg-purple-600 text-white
+                                {% elif message.message_type == 'thinking' %}bg-yellow-600 text-black
                                 {% elif message.message_type == 'system' %}bg-gray-600 text-white
-                                {% else %}bg-yellow-600 text-white{% endif %}">
+                                {% else %}bg-orange-600 text-white{% endif %}">
                                 {{ message.message_type }}
                             </span>
 

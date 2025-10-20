@@ -42,6 +42,8 @@
                         <option value="user" {% if message_type == 'user' %}selected{% endif %}>User</option>
                         <option value="assistant" {% if message_type == 'assistant' %}selected{% endif %}>Assistant</option>
                         <option value="tool_result" {% if message_type == 'tool_result' %}selected{% endif %}>Tool Result</option>
+                        <option value="tool_use" {% if message_type == 'tool_use' %}selected{% endif %}>Tool Use</option>
+                        <option value="thinking" {% if message_type == 'thinking' %}selected{% endif %}>Thinking</option>
                         <option value="system" {% if message_type == 'system' %}selected{% endif %}>System</option>
                     </select>
                 </div>
