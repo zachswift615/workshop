@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Message - Workshop{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Back Link -->
+    <div>
+        <a href="/messages" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+            ← Back to Messages
+        </a>
+    </div>
+
+    <!-- Main Message -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+            <h2 class="text-xl font-semibold text-gray-900">Message Details</h2>
+        </div>
+
+        <div class="px-6 py-4 space-y-4">
+            <!-- Message Header -->
+            <div class="flex items-center gap-3">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                    {% if message.message_type == 'user' %}bg-blue-100 text-blue-800
+                    {% elif message.message_type == 'assistant' %}bg-green-100 text-green-800
+                    {% elif message.message_type == 'tool_result' %}bg-purple-100 text-purple-800
+                    {% elif message.message_type == 'system' %}bg-gray-100 text-gray-800
+                    {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                    {{ message.message_type }}
+                </span>
+
+                <span class="text-gray-600">
+                    {{ message.timestamp | timeago }}
+                </span>
+            </div>
+
+            <!-- Metadata -->
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <span class="font-medium text-gray-700">Message UUID:</span>
+                    <code class="ml-2 text-gray-600 bg-gray-100 px-2 py-1 rounded">{{ message.message_uuid }}</code>
+                </div>
+
+                {% if message.session_id %}
+                <div>
+                    <span class="font-medium text-gray-700">Session ID:</span>
+                    <code class="ml-2 text-gray-600 bg-gray-100 px-2 py-1 rounded">{{ message.session_id }}</code>
+                </div>
+                {% endif %}
+
+                {% if message.parent_uuid %}
+                <div>
+                    <span class="font-medium text-gray-700">Parent UUID:</span>
+                    <code class="ml-2 text-gray-600 bg-gray-100 px-2 py-1 rounded">{{ message.parent_uuid }}</code>
+                </div>
+                {% endif %}
+
+                <div>
+                    <span class="font-medium text-gray-700">Timestamp:</span>
+                    <span class="ml-2 text-gray-600">{{ message.timestamp }}</span>
+                </div>
+            </div>
+
+            <!-- Message Content -->
+            <div>
+                <h3 class="font-medium text-gray-900 mb-2">Content:</h3>
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    {% if message.content %}
+                        <pre class="whitespace-pre-wrap text-sm text-gray-700 font-mono">{{ message.content }}</pre>
+                    {% else %}
+                        <p class="text-gray-400 italic">No text content</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Raw JSON -->
+            <div x-data="{ showRaw: false }">
+                <button
+                    @click="showRaw = !showRaw"
+                    class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                    <span x-show="!showRaw">Show Raw JSON ↓</span>
+                    <span x-show="showRaw">Hide Raw JSON ↑</span>
+                </button>
+
+                <div x-show="showRaw" class="mt-2">
+                    <div class="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                        <pre class="text-sm text-green-400 font-mono">{{ message.raw_json }}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conversation Context -->
+    {% if context_messages and context_messages|length > 1 %}
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+            <h2 class="text-xl font-semibold text-gray-900">Conversation Context</h2>
+            <p class="text-sm text-gray-600 mt-1">Messages before and after this one</p>
+        </div>
+
+        <div class="divide-y divide-gray-200">
+            {% for ctx_msg in context_messages %}
+                <div class="px-6 py-4 {% if ctx_msg.message_uuid == message.message_uuid %}bg-yellow-50 border-l-4 border-yellow-400{% else %}hover:bg-gray-50{% endif %}">
+                    <!-- Context Message Header -->
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {% if ctx_msg.message_type == 'user' %}bg-blue-100 text-blue-800
+                            {% elif ctx_msg.message_type == 'assistant' %}bg-green-100 text-green-800
+                            {% elif ctx_msg.message_type == 'tool_result' %}bg-purple-100 text-purple-800
+                            {% elif ctx_msg.message_type == 'system' %}bg-gray-100 text-gray-800
+                            {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                            {{ ctx_msg.message_type }}
+                        </span>
+
+                        <span class="text-sm text-gray-500">
+                            {{ ctx_msg.timestamp | timeago }}
+                        </span>
+
+                        {% if ctx_msg.message_uuid == message.message_uuid %}
+                        <span class="text-xs font-semibold text-yellow-700 bg-yellow-200 px-2 py-1 rounded">
+                            ← Current Message
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Context Message Content -->
+                    <div class="text-gray-700 text-sm">
+                        {% if ctx_msg.content %}
+                            {% if ctx_msg.content|length > 300 %}
+                                {{ ctx_msg.content[:300] }}...
+                                <a href="/messages/{{ ctx_msg.message_uuid }}" class="text-blue-600 hover:text-blue-800 ml-2">
+                                    View full
+                                </a>
+                            {% else %}
+                                {{ ctx_msg.content }}
+                            {% endif %}
+                        {% else %}
+                            <span class="text-gray-400 italic">No text content</span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

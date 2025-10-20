@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "powertools": {
+      "command": "/opt/homebrew/opt/powertools/bin/powertools",
+      "args": ["--mcp-server"],
+      "env": {}
+    }
+  }
+}

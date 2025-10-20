@@ -606,8 +606,17 @@ If a category has no entries, use an empty array. Do NOT include any text outsid
 
         return entries
 
-    def _get_message_content(self, message: Dict) -> str:
-        """Extract text content from message, filtering out system messages"""
+    def _get_message_content(self, message: Dict, skip_noise_filter: bool = False) -> str:
+        """
+        Extract text content from message, filtering out system messages.
+
+        Args:
+            message: Message dictionary from JSONL
+            skip_noise_filter: If True, skip noise filtering (for raw message storage)
+
+        Returns:
+            Extracted text content
+        """
         msg_data = message.get('message', {})
 
         if isinstance(msg_data, dict):
@@ -630,8 +639,8 @@ If a category has no entries, use an empty array. Do NOT include any text outsid
             else:
                 return ""
 
-            # Filter out obvious noise
-            if self._is_noise(content):
+            # Filter out obvious noise (unless we're storing raw messages)
+            if not skip_noise_filter and self._is_noise(content):
                 return ""
 
             return content

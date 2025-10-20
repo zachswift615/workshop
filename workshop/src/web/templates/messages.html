@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Conversation Messages - Workshop{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-gray-900">Conversation Messages</h1>
+        <div class="text-sm text-gray-500">
+            {{ total }} total messages
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <form method="get" action="/messages" class="space-y-4">
+            <!-- Search -->
+            <div>
+                <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input
+                    type="text"
+                    name="q"
+                    id="search"
+                    value="{{ search_query }}"
+                    placeholder="Search message content..."
+                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                >
+            </div>
+
+            <!-- Filters Row -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Message Type -->
+                <div>
+                    <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Message Type</label>
+                    <select
+                        name="type"
+                        id="type"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                        <option value="">All Types</option>
+                        <option value="user" {% if message_type == 'user' %}selected{% endif %}>User</option>
+                        <option value="assistant" {% if message_type == 'assistant' %}selected{% endif %}>Assistant</option>
+                        <option value="tool_result" {% if message_type == 'tool_result' %}selected{% endif %}>Tool Result</option>
+                        <option value="system" {% if message_type == 'system' %}selected{% endif %}>System</option>
+                    </select>
+                </div>
+
+                <!-- Date From -->
+                <div>
+                    <label for="from" class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                    <input
+                        type="date"
+                        name="from"
+                        id="from"
+                        value="{{ date_from }}"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                </div>
+
+                <!-- Date To -->
+                <div>
+                    <label for="to" class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                    <input
+                        type="date"
+                        name="to"
+                        id="to"
+                        value="{{ date_to }}"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                </div>
+
+                <!-- Sort Order -->
+                <div>
+                    <label for="sort" class="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+                    <select
+                        name="sort"
+                        id="sort"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                        <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Newest First</option>
+                        <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Oldest First</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2">
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    Apply Filters
+                </button>
+                <a
+                    href="/messages"
+                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Messages List -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        {% if messages %}
+            <div class="divide-y divide-gray-200">
+                {% for message in messages %}
+                    <div class="p-4 hover:bg-gray-50 transition-colors">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <!-- Message Header -->
+                                <div class="flex items-center gap-3 mb-2">
+                                    <!-- Type Badge -->
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {% if message.message_type == 'user' %}bg-blue-100 text-blue-800
+                                        {% elif message.message_type == 'assistant' %}bg-green-100 text-green-800
+                                        {% elif message.message_type == 'tool_result' %}bg-purple-100 text-purple-800
+                                        {% elif message.message_type == 'system' %}bg-gray-100 text-gray-800
+                                        {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                        {{ message.message_type }}
+                                    </span>
+
+                                    <!-- Timestamp -->
+                                    <span class="text-sm text-gray-500">
+                                        {{ message.timestamp | timeago }}
+                                    </span>
+
+                                    {% if message.session_id %}
+                                    <span class="text-xs text-gray-400">
+                                        Session: {{ message.session_id[:8] }}...
+                                    </span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Message Content Preview -->
+                                <div class="text-gray-700">
+                                    {% if message.content %}
+                                        {% if message.content|length > 200 %}
+                                            {{ message.content[:200] }}...
+                                        {% else %}
+                                            {{ message.content }}
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-gray-400 italic">No text content</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="ml-4">
+                                <a
+                                    href="/messages/{{ message.message_uuid }}"
+                                    class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                >
+                                    View Full →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+                <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 sm:px-6">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Page {{ page }} of {{ total_pages }}
+                        </div>
+                        <div class="flex gap-2">
+                            {% if page > 1 %}
+                                <a
+                                    href="?page={{ page - 1 }}{% if search_query %}&q={{ search_query }}{% endif %}{% if message_type %}&type={{ message_type }}{% endif %}{% if date_from %}&from={{ date_from }}{% endif %}{% if date_to %}&to={{ date_to }}{% endif %}&sort={{ sort_order }}"
+                                    class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                    Previous
+                                </a>
+                            {% endif %}
+
+                            {% if page < total_pages %}
+                                <a
+                                    href="?page={{ page + 1 }}{% if search_query %}&q={{ search_query }}{% endif %}{% if message_type %}&type={{ message_type }}{% endif %}{% if date_from %}&from={{ date_from }}{% endif %}{% if date_to %}&to={{ date_to }}{% endif %}&sort={{ sort_order }}"
+                                    class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                    Next
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="p-8 text-center text-gray-500">
+                No messages found.
+                {% if search_query or message_type or date_from or date_to %}
+                    Try adjusting your filters.
+                {% else %}
+                    Import JSONL files with <code class="bg-gray-100 px-2 py-1 rounded">workshop import --store-raw-messages --execute</code>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

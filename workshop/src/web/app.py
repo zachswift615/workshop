@@ -98,6 +98,8 @@ app.jinja_env.filters['timeago'] = format_timestamp
 @app.route('/')
 def dashboard():
     """Main dashboard with stats and recent entries"""
+    from src.storage.raw_messages import RawMessagesManager
+
     store = get_store()
 
     # Get stats
@@ -109,6 +111,11 @@ def dashboard():
         'decisions': len([e for e in all_entries if e['type'] == 'decision']),
         'preferences': len([e for e in all_entries if e['type'] == 'preference']),
     }
+
+    # Count raw messages
+    with store.db_manager.get_session() as session:
+        raw_msg_manager = RawMessagesManager(session, store.db_manager.project_id)
+        stats['raw_messages'] = raw_msg_manager.count_messages()
 
     # Get recent entries
     recent_entries = store.get_entries(limit=20)
@@ -333,6 +340,135 @@ def api_stats():
         stats['by_type'][entry_type] = stats['by_type'].get(entry_type, 0) + 1
 
     return jsonify(stats)
+
+@app.route('/messages')
+def list_messages():
+    """Raw conversation messages with search, filter, and sort"""
+    from src.storage.raw_messages import RawMessagesManager
+    from dateutil import parser as date_parser
+
+    store = get_store()
+
+    # Get filters from query params
+    search_query = request.args.get('q', '')
+    message_type = request.args.get('type', '')
+    date_from = request.args.get('from', '')
+    date_to = request.args.get('to', '')
+    sort_order = request.args.get('sort', 'desc')  # desc = newest first, asc = oldest first
+    page = int(request.args.get('page', 1))
+    per_page = 50
+
+    # Get messages using RawMessagesManager
+    with store.db_manager.get_session() as session:
+        raw_msg_manager = RawMessagesManager(session, store.db_manager.project_id)
+
+        # Start with search if provided
+        if search_query:
+            messages = raw_msg_manager.search_messages(
+                query_text=search_query,
+                limit=1000,
+                message_types=[message_type] if message_type else None
+            )
+        else:
+            # Get all messages (we'll filter and paginate)
+            from sqlalchemy import select, and_
+            from src.models import RawMessage
+
+            query = select(RawMessage)
+
+            # Apply project filter
+            if store.db_manager.project_id:
+                query = query.where(RawMessage.project_id == store.db_manager.project_id)
+
+            # Filter by message type
+            if message_type:
+                query = query.where(RawMessage.message_type == message_type)
+
+            # Filter by date range
+            if date_from:
+                try:
+                    from_dt = date_parser.parse(date_from)
+                    query = query.where(RawMessage.timestamp >= from_dt)
+                except:
+                    pass
+
+            if date_to:
+                try:
+                    to_dt = date_parser.parse(date_to)
+                    query = query.where(RawMessage.timestamp <= to_dt)
+                except:
+                    pass
+
+            # Sort by timestamp
+            if sort_order == 'asc':
+                query = query.order_by(RawMessage.timestamp.asc())
+            else:
+                query = query.order_by(RawMessage.timestamp.desc())
+
+            # Get results
+            results = session.execute(query.limit(1000)).scalars().all()
+
+            messages = [
+                {
+                    'id': str(m.id),
+                    'message_uuid': m.message_uuid,
+                    'session_id': m.session_id,
+                    'message_type': m.message_type,
+                    'timestamp': m.timestamp.isoformat(),
+                    'parent_uuid': m.parent_uuid,
+                    'content': m.content,
+                    'raw_json': m.raw_json,
+                    'created_at': m.created_at.isoformat()
+                }
+                for m in results
+            ]
+
+    # Pagination
+    total = len(messages)
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_messages = messages[start:end]
+
+    total_pages = (total + per_page - 1) // per_page
+
+    return render_template('messages.html',
+                         messages=page_messages,
+                         search_query=search_query,
+                         message_type=message_type,
+                         date_from=date_from,
+                         date_to=date_to,
+                         sort_order=sort_order,
+                         page=page,
+                         total_pages=total_pages,
+                         total=total)
+
+@app.route('/messages/<message_uuid>')
+def view_message(message_uuid):
+    """View single raw message with context"""
+    from src.storage.raw_messages import RawMessagesManager
+
+    store = get_store()
+
+    with store.db_manager.get_session() as session:
+        raw_msg_manager = RawMessagesManager(session, store.db_manager.project_id)
+
+        # Get the message
+        message = raw_msg_manager.get_message_by_uuid(message_uuid)
+
+        if not message:
+            flash('Message not found', 'error')
+            return redirect(url_for('list_messages'))
+
+        # Get conversation context (5 before, 5 after)
+        context_messages = raw_msg_manager.get_conversation_context(
+            message_uuid=message_uuid,
+            before=5,
+            after=5
+        )
+
+    return render_template('view_message.html',
+                         message=message,
+                         context_messages=context_messages)
 
 def run(host='127.0.0.1', port=5000, debug=True, workspace_dir=None):
     """

@@ -1080,7 +1080,8 @@ If the `workshop` CLI is available in this project, use it liberally to maintain
 @click.option('--llm', is_flag=True, help='Use LLM extraction for better quality (requires ANTHROPIC_API_KEY)')
 @click.option('--llm-local', is_flag=True, help='Use local LLM (LM Studio) - FREE, no API key needed')
 @click.option('--llm-endpoint', default='http://localhost:1234/v1', help='Local LLM endpoint (default: http://localhost:1234/v1)')
-def import_sessions(files, execute, interactive, since, force, llm, llm_local, llm_endpoint):
+@click.option('--store-raw-messages', is_flag=True, help='Store complete raw messages in database for conversation traversal')
+def import_sessions(files, execute, interactive, since, force, llm, llm_local, llm_endpoint, store_raw_messages):
     """
     Import historical sessions from JSONL transcripts.
 
@@ -1365,44 +1366,44 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
             )
             imported_count += 1
 
-        # Import ALL raw messages from the JSONL file
-        # Read all messages (not just extracted entries)
-        from .storage.raw_messages import RawMessagesManager
+        # Optionally import ALL raw messages from the JSONL file
+        if store_raw_messages:
+            from .storage.raw_messages import RawMessagesManager
 
-        raw_messages_to_store = []
-        all_messages = parser._read_jsonl(jsonl_path)
+            raw_messages_to_store = []
+            all_messages = parser._read_jsonl(jsonl_path)
 
-        # Check if already imported (skip duplicates)
-        with store.db_manager.get_session() as session:
-            raw_msg_manager = RawMessagesManager(session, store.db_manager.project_id)
+            # Check if already imported (skip duplicates)
+            with store.db_manager.get_session() as session:
+                raw_msg_manager = RawMessagesManager(session, store.db_manager.project_id)
 
-            for msg in all_messages:
-                msg_uuid = msg.get('uuid', '')
-                if not msg_uuid:
-                    continue
+                for msg in all_messages:
+                    msg_uuid = msg.get('uuid', '')
+                    if not msg_uuid:
+                        continue
 
-                # Skip if already exists
-                if raw_msg_manager.message_exists(msg_uuid):
-                    continue
+                    # Skip if already exists
+                    if raw_msg_manager.message_exists(msg_uuid):
+                        continue
 
-                # Extract content from message
-                msg_content = parser._get_message_content(msg)
+                    # Extract content from message (skip noise filter for raw storage)
+                    msg_content = parser._get_message_content(msg, skip_noise_filter=True)
 
-                raw_messages_to_store.append({
-                    'message_uuid': msg_uuid,
-                    'message_type': msg.get('type', 'unknown'),
-                    'timestamp': msg.get('timestamp', datetime.now().isoformat()),
-                    'session_id': msg.get('sessionId'),
-                    'parent_uuid': msg.get('parentUuid'),
-                    'content': msg_content,
-                    'raw_json': json.dumps(msg)
-                })
+                    raw_messages_to_store.append({
+                        'message_uuid': msg_uuid,
+                        'message_type': msg.get('type', 'unknown'),
+                        'timestamp': msg.get('timestamp', datetime.now().isoformat()),
+                        'session_id': msg.get('sessionId'),
+                        'parent_uuid': msg.get('parentUuid'),
+                        'content': msg_content,
+                        'raw_json': json.dumps(msg)
+                    })
 
-            # Batch insert all raw messages
-            if raw_messages_to_store:
-                messages_count = raw_msg_manager.add_raw_messages_batch(raw_messages_to_store)
-                total_messages_stored += messages_count
-                click.echo(f"  ✓ Stored {messages_count} raw messages")
+                # Batch insert all raw messages
+                if raw_messages_to_store:
+                    messages_count = raw_msg_manager.add_raw_messages_batch(raw_messages_to_store)
+                    total_messages_stored += messages_count
+                    click.echo(f"  ✓ Stored {messages_count} raw messages")
 
         # Record import
         file_hash = parser.calculate_file_hash(jsonl_path)
@@ -1415,7 +1416,10 @@ def import_sessions(files, execute, interactive, since, force, llm, llm_local, l
             entries_created=len(entries)
         )
 
-    success(f"Imported {imported_count} entries and {total_messages_stored} raw messages from {files_processed} files")
+    if store_raw_messages:
+        success(f"Imported {imported_count} entries and {total_messages_stored} raw messages from {files_processed} files")
+    else:
+        success(f"Imported {imported_count} entries from {files_processed} files")
 
 
 @main.command('import-status')

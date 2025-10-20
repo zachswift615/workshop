@@ -12,7 +12,7 @@
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-6">
         <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="p-5">
                 <div class="flex items-center">
@@ -66,6 +66,17 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+            <a href="/messages" class="block p-5">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <dt class="text-sm font-medium text-gray-500 truncate">Raw Messages</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-indigo-600">{{ stats.raw_messages }}</dd>
+                    </div>
+                </div>
+            </a>
         </div>
     </div>
 
